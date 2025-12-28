@@ -30,8 +30,9 @@ def build():
 
     # OS specific adjustments
     if sys.platform == "win32":
-        # cmd.append("--icon=icon.ico")
-        pass
+        icon_path = base_dir / "assets" / "icon.ico"
+        if icon_path.exists():
+            cmd.append(f"--icon={icon_path}")
 
     print(f"Executing: {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=base_dir)

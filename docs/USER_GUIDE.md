@@ -69,6 +69,10 @@ python src/image_optimizer.py [INPUT] [OPTIONS]
 python src/image_optimizer.py ./images -o ./dist -f webp -s 1920
 ```
 
+### 图标与快捷方式
+- **Windows**: 使用 `scripts/build.py` 生成的 exe 包含内嵌图标。
+- **Linux**: 使用 `scripts/build_deb.py` 生成的 deb 包会自动安装图标到 `/usr/share/icons`，并在应用程序菜单中显示。如果图标未显示，请尝试运行 `sudo gtk-update-icon-cache -f /usr/share/icons/hicolor`。
+
 ## ❓ 故障排除
 
 **Q: 压缩效果不明显？**

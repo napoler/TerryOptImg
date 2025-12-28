@@ -28,7 +28,7 @@ class OptimizerApp(tk.Tk):
     """
     def __init__(self):
         super().__init__()
-        self.title("SpecKit Image Optimizer (Curtail Replica)")
+        self.title("TerryOptImg - Image Optimizer")
         self.geometry("600x700")
 
         self.files_to_process = []
@@ -341,6 +341,20 @@ class OptimizerApp(tk.Tk):
         self.save_config()
         self.destroy()
 
+def set_windows_attributes():
+    """Enable High DPI awareness and set AppUserModelID on Windows."""
+    if sys.platform == "win32":
+        try:
+            from ctypes import windll
+            # DPI Awareness
+            windll.shcore.SetProcessDpiAwareness(1)
+            # AppUserModelID for Taskbar Grouping and Name
+            myappid = 'terryoptimg.image.optimizer.1.1.0'
+            windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
 if __name__ == "__main__":
+    set_windows_attributes()
     app = OptimizerApp()
     app.mainloop()

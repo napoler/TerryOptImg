@@ -55,8 +55,22 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [ ] T-022: GitHub Actions Workflow (release.yml)
 - [ ] T-023: CI 文档更新
 
-### Phase 9: Branding Update (To Do)
-- [ ] T-024: 更新维护者信息 (Terry Chan)
+### Phase 9: Branding Update (Completed)
+- [x] T-024: 更新维护者信息 (Terry Chan)
+
+### Phase 10: UX Polish (Completed)
+- [x] T-025: 实现高 DPI 适配
+
+### Phase 11: Branding Fix (Completed)
+- [x] T-026: 更新窗口标题和 AppID
+
+### Phase 12: Config Path Fix (Completed)
+- [x] T-027: 跨平台配置路径规范化
+
+### Phase 13: Icon & Install Polish (Completed)
+- [x] T-028: 图标生成脚本
+- [x] T-029: 构建脚本集成图标
+- [x] T-030: 安装文档更新
 
 ## SpecKit 核心功能命令 (Core Commands)
 
