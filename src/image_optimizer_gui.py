@@ -21,6 +21,10 @@ except ImportError:
         import image_optimizer
 
 class OptimizerApp(tk.Tk):
+    """
+    Main GUI Application.
+    @spec: FR-004 (GUI), FR-005 (Concurrency)
+    """
     def __init__(self):
         super().__init__()
         self.title("SpecKit Image Optimizer (Curtail Replica)")

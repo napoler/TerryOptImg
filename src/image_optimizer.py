@@ -10,6 +10,10 @@ from tqdm import tqdm
 from PIL import Image
 
 class ImageOptimizer:
+    """
+    Image Optimizer Logic.
+    @spec: FR-001 (Compression), FR-002 (Resize), FR-003 (Conversion)
+    """
     def __init__(self, output_dir: Optional[str] = None,
                  max_size: Optional[int] = None,
                  target_format: Optional[str] = None,
