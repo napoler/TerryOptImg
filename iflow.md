@@ -29,6 +29,11 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [x] T-007: 任务控制 (Cancel Button)
 - [x] T-008: 错误隔离与日志优化 (Error Handling)
 
+### Phase 3: Smart Concurrency (Completed)
+- [x] T-010: 智能默认线程数 (CPU Count)
+- [x] T-011: 限制 UI 最大线程数
+- [x] T-012: 低负载模式 (Low Resource Mode)
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流
