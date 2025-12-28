@@ -56,36 +56,67 @@ class OptimizerApp(tk.Tk):
             self.config_manager = None
             print("Warning: ConfigManager not loaded.")
 
-        # Dynamic Scaling
+        # Enhanced Dynamic Scaling
         try:
+            # Primary DPI detection
             dpi = self.winfo_fpixels('1i')
+            self.log(f"Detected DPI: {dpi:.1f}")
         except Exception:
-            dpi = 96.0
+            # Fallback methods
+            try:
+                # Try system DPI detection on Linux
+                import subprocess
+                result = subprocess.run(['xdpyinfo'], capture_output=True, text=True)
+                for line in result.stdout.split('\n'):
+                    if 'resolution' in line.lower():
+                        dpi_val = line.split()[-2]
+                        dpi = float(dpi_val)
+                        break
+                else:
+                    dpi = 96.0
+            except Exception:
+                dpi = 96.0
+            self.log(f"Using fallback DPI: {dpi:.1f}")
 
         # Load scale from config if available
         user_scale = 1.0
         if self.config_manager:
             user_scale = self.config_manager.get("ui_scale", 1.0)
 
-        # Use user scale if explicitly set > 1.0 (or just use it as multiplier?)
-        # Let's assume user_scale overrides auto-detection if it's not 1.0 (default)
-        # OR better: user_scale *is* the scale to use if we want manual control.
-        # But for now, let's just use it if it seems intentional.
-        # Actually, let's respect the settings dialog intent: manual override.
+        # Enhanced scaling logic: user_scale acts as multiplier on auto-detected scale
+        auto_scale = max(1.2, dpi / 96.0)  # Increased minimum auto-scale
         if user_scale != 1.0:
-            self.scale = user_scale
+            self.scale = user_scale  # Manual override takes precedence
+            self.log(f"Using manual scale: {self.scale:.1f}x")
         else:
-            self.scale = max(1.0, dpi / 96.0)
+            self.scale = auto_scale * 1.25  # Additional 25% boost for readability
+            self.log(f"Using auto-detected scale: {self.scale:.1f}x (DPI: {dpi:.1f})")
+        
+        # Ensure minimum scale for readability - increased to 1.5
+        self.scale = max(self.scale, 1.5)
 
         width = int(600 * self.scale)
         height = int(700 * self.scale)
         self.geometry(f"{width}x{height}")
 
-        # Apply Style
+        # Apply Enhanced Style
         style = ttk.Style(self)
-        base_font_size = int(10 * self.scale)
+        
+        # Enhanced font scaling with minimum size - increased for better readability
+        base_font_size = max(int(12 * self.scale), 14)  # Minimum 14pt
+        label_font_size = max(int(11 * self.scale), 13)   # Minimum 13pt for labels
+        log_font_size = max(int(10 * self.scale), 12)    # Minimum 12pt for log text
+        
+        # Configure fonts with better readability
         style.configure('.', font=('Helvetica', base_font_size))
-        style.configure('TButton', padding=int(5 * self.scale))
+        style.configure('TLabel', font=('Helvetica', label_font_size))
+        style.configure('TButton', padding=int(6 * self.scale), font=('Helvetica', base_font_size))
+        style.configure('TSpinbox', font=('Helvetica', base_font_size))
+        style.configure('TCombobox', font=('Helvetica', base_font_size))
+        style.configure('TCheckbutton', font=('Helvetica', base_font_size))
+        style.configure('TRadiobutton', font=('Helvetica', base_font_size))
+        style.configure('TEntry', font=('Helvetica', base_font_size))
+        style.configure('Treeview', font=('Helvetica', log_font_size))  # For file list
 
         self.files_to_process = []
         self.processing = False
@@ -191,7 +222,9 @@ class OptimizerApp(tk.Tk):
         log_frame = ttk.LabelFrame(main_frame, text="Log", padding="5")
         log_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.log_text = tk.Text(log_frame, height=10, width=50, state="disabled")
+        log_font_size = max(int(10 * self.scale), 12)  # Minimum 12pt for log
+        self.log_text = tk.Text(log_frame, height=10, width=50, state="disabled", 
+                               font=('Helvetica', log_font_size))
         self.log_text.tag_config("error", foreground="red")
         self.log_text.tag_config("success", foreground="green")
 
@@ -416,9 +449,19 @@ def set_windows_attributes():
     """Enable High DPI awareness and set AppUserModelID on Windows."""
     if sys.platform == "win32":
         try:
-            from ctypes import windll
-            # DPI Awareness
-            windll.shcore.SetProcessDpiAwareness(1)
+            from ctypes import windll, c_int
+            # Enhanced DPI Awareness - try multiple methods
+            try:
+                # Windows 10/11: Per-Monitor V2 DPI Awareness
+                windll.shcore.SetProcessDpiAwarenessContext(-3)  # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+            except:
+                try:
+                    # Windows 8.1+: Per-Monitor DPI Awareness
+                    windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+                except:
+                    # Windows Vista+: System DPI Awareness
+                    windll.user32.SetProcessDPIAware()
+            
             # AppUserModelID for Taskbar Grouping and Name
             myappid = 'terryoptimg.image.optimizer.1.1.0'
             windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)

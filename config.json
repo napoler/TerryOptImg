@@ -1,0 +1,14 @@
+{
+    "mode": "Lossy",
+    "keep_metadata": false,
+    "quality": 85,
+    "workers": 4,
+    "max_size": "",
+    "format": "Keep Original",
+    "overwrite": false,
+    "output_dir": null,
+    "language": "Chinese",
+    "check_updates": true,
+    "ui_scale": 2.5,
+    "theme": "System"
+}

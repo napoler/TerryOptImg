@@ -18,7 +18,7 @@ class ConfigManager:
         "output_dir": None,
         "language": "English",
         "check_updates": True,
-        "ui_scale": 1.0,
+        "ui_scale": 1.5,
         "theme": "System"
     }
 

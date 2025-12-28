@@ -28,6 +28,7 @@ class SettingsDialog(tk.Toplevel):
 
         self._init_ui()
         self._load_values()
+        self._detect_dpi()
 
         # Center window
         self.update_idletasks()
@@ -96,14 +97,29 @@ class SettingsDialog(tk.Toplevel):
         # UI Scale
         ttk.Label(self.tab_appearance, text="UI Scale Factor (requires restart):").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.scale_var = tk.DoubleVar()
-        ttk.Spinbox(self.tab_appearance, from_=0.5, to=3.0, increment=0.1,
-                    textvariable=self.scale_var, width=5).grid(row=0, column=1, sticky=tk.W, padx=10)
+        scale_spinbox = ttk.Spinbox(self.tab_appearance, from_=0.5, to=3.0, increment=0.1,
+                    textvariable=self.scale_var, width=5)
+        scale_spinbox.grid(row=0, column=1, sticky=tk.W, padx=10)
+        
+        # DPI Info
+        self.dpi_info_label = ttk.Label(self.tab_appearance, text="System DPI: Detecting...")
+        self.dpi_info_label.grid(row=0, column=2, sticky=tk.W, padx=10)
+        
+        # Preset buttons
+        preset_frame = ttk.Frame(self.tab_appearance)
+        preset_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
+        ttk.Label(preset_frame, text="Quick Presets:").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(preset_frame, text="100%", command=lambda: self.scale_var.set(1.0)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(preset_frame, text="125%", command=lambda: self.scale_var.set(1.25)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(preset_frame, text="150%", command=lambda: self.scale_var.set(1.5)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(preset_frame, text="200%", command=lambda: self.scale_var.set(2.0)).pack(side=tk.LEFT, padx=2)
 
         # Theme (Placeholder)
-        ttk.Label(self.tab_appearance, text="Theme:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(self.tab_appearance, text="Theme:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.theme_var = tk.StringVar()
         ttk.Combobox(self.tab_appearance, textvariable=self.theme_var,
-                     values=["System", "Light", "Dark"], state="readonly").grid(row=1, column=1, sticky=tk.W, padx=10)
+                     values=["System", "Light", "Dark"], state="readonly").grid(row=2, column=1, sticky=tk.W, padx=10)
 
     def _load_values(self):
         # General
@@ -118,6 +134,9 @@ class SettingsDialog(tk.Toplevel):
         # Appearance
         self.scale_var.set(self.config_manager.get("ui_scale", 1.0))
         self.theme_var.set(self.config_manager.get("theme", "System"))
+        
+        # Detect and display DPI
+        self._detect_dpi()
 
     def save(self):
         # Update config manager
@@ -138,6 +157,30 @@ class SettingsDialog(tk.Toplevel):
             self.on_save_callback()
 
         self.destroy()
+    
+    def _detect_dpi(self):
+        """Detect system DPI and update info label"""
+        try:
+            # Try to get DPI from parent window
+            dpi = self.master.winfo_fpixels('1i')
+            auto_scale = max(1.0, dpi / 96.0)
+            self.dpi_info_label.config(text=f"System DPI: {dpi:.0f} (Auto: {auto_scale:.1f}x)")
+        except Exception:
+            try:
+                # Fallback for Linux
+                import subprocess
+                result = subprocess.run(['xdpyinfo'], capture_output=True, text=True, timeout=3)
+                for line in result.stdout.split('\n'):
+                    if 'resolution' in line.lower():
+                        dpi_val = line.split()[-2]
+                        dpi = float(dpi_val)
+                        auto_scale = max(1.0, dpi / 96.0)
+                        self.dpi_info_label.config(text=f"System DPI: {dpi:.0f} (Auto: {auto_scale:.1f}x)")
+                        break
+                else:
+                    self.dpi_info_label.config(text="System DPI: 96 (Auto: 1.0x)")
+            except Exception:
+                self.dpi_info_label.config(text="System DPI: Unknown (Auto: 1.0x)")
 
 if __name__ == "__main__":
     # Test harness
