@@ -43,6 +43,11 @@ def build_deb():
     usr_share_apps.mkdir(parents=True, exist_ok=True)
     debian_dir.mkdir(parents=True, exist_ok=True)
 
+    # Install Icon
+    icon_dest = deb_build_dir / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps"
+    icon_dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(base_dir / "assets" / "icon.png", icon_dest / "image-optimizer.png")
+
     # Copy Binary
     # build.py generates 'ImageOptimizer' in dist/
     binary_src = dist_dir / "ImageOptimizer"
@@ -77,7 +82,7 @@ Description: {DESCRIPTION}
 Name=Image Optimizer
 Comment={DESCRIPTION}
 Exec=/usr/bin/{APP_NAME}
-Icon=utilities-graphics
+Icon=image-optimizer
 Terminal=false
 Type=Application
 Categories=Graphics;Utility;
