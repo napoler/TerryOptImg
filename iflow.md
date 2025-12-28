@@ -39,6 +39,11 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [x] T-014: UI 增强 (Mode, Metadata)
 - [x] T-015: 统计摘要
 
+### Phase 5: Delivery & Documentation (Completed)
+- [x] T-016: 编写用户手册 (USER_GUIDE.md)
+- [x] T-017: 创建打包配置 (PyInstaller)
+- [x] T-018: 更新项目主页 (README.md)
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流
