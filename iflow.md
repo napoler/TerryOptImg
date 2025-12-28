@@ -61,6 +61,9 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 ### Phase 10: UX Polish (Completed)
 - [x] T-025: 实现高 DPI 适配
 
+### Phase 11: Branding Fix (Completed)
+- [x] T-026: 更新窗口标题和 AppID
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流
