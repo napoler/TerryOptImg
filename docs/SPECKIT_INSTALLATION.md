@@ -984,7 +984,7 @@ specify init --help
 **版本**: v1.3.0-installation-guide-enhanced
 **创建时间**: 2025-12-28
 **更新时间**: 2025-12-28
-**维护者**: Terry
+**维护者**: Terry Chan <napoler2008@gmail.com>
 **执行级别**: 强制执行
 **SpecKit合规**: 100%
 

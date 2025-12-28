@@ -7,7 +7,7 @@ from pathlib import Path
 # Config
 APP_NAME = "image-optimizer"
 VERSION = "1.1.0"
-MAINTAINER = "SpecKit Agent <agent@speckit.org>"
+MAINTAINER = "Terry Chan <napoler2008@gmail.com>"
 DESCRIPTION = "Image Optimizer (Curtail Replica)"
 DEPENDENCIES = "jpegoptim, pngquant" # Recommended external tools
 

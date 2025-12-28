@@ -55,6 +55,9 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [ ] T-022: GitHub Actions Workflow (release.yml)
 - [ ] T-023: CI 文档更新
 
+### Phase 9: Branding Update (To Do)
+- [ ] T-024: 更新维护者信息 (Terry Chan)
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流
