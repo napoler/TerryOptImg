@@ -60,7 +60,7 @@ class OptimizerApp(tk.Tk):
         try:
             # Primary DPI detection
             dpi = self.winfo_fpixels('1i')
-            self.log(f"Detected DPI: {dpi:.1f}")
+            print(f"Detected DPI: {dpi:.1f}")
         except Exception:
             # Fallback methods
             try:
@@ -76,7 +76,7 @@ class OptimizerApp(tk.Tk):
                     dpi = 96.0
             except Exception:
                 dpi = 96.0
-            self.log(f"Using fallback DPI: {dpi:.1f}")
+            print(f"Using fallback DPI: {dpi:.1f}")
 
         # Load scale from config if available
         user_scale = 1.0
@@ -87,10 +87,10 @@ class OptimizerApp(tk.Tk):
         auto_scale = max(1.2, dpi / 96.0)  # Increased minimum auto-scale
         if user_scale != 1.0:
             self.scale = user_scale  # Manual override takes precedence
-            self.log(f"Using manual scale: {self.scale:.1f}x")
+            print(f"Using manual scale: {self.scale:.1f}x")
         else:
             self.scale = auto_scale * 1.25  # Additional 25% boost for readability
-            self.log(f"Using auto-detected scale: {self.scale:.1f}x (DPI: {dpi:.1f})")
+            print(f"Using auto-detected scale: {self.scale:.1f}x (DPI: {dpi:.1f})")
         
         # Ensure minimum scale for readability - increased to 1.5
         self.scale = max(self.scale, 1.5)
