@@ -1,0 +1,97 @@
+# iflow.md - Workflow & Specification
+
+## 规范 (Specification)
+See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
+
+### Functional Requirements
+- **FR-001**: 智能图像压缩 (Smart Compression)
+- **FR-002**: 智能图像缩放 (Smart Resizing)
+- **FR-003**: 多格式转换 (Format Conversion)
+- **FR-004**: 图形用户界面 (GUI)
+- **FR-005**: 高并发处理 (Concurrency)
+
+## 流程 (Workflow)
+1. **Design**: Update `docs/IMAGE_OPTIMIZER_SPEC.md`.
+2. **Plan**: Define tasks.
+3. **Implement**: Write code in `src/`.
+4. **Verify**: Test and Update Reports.
+
+## 任务清单 (Tasks)
+### Phase 1: MVP (Completed)
+- [x] T-001: 核心逻辑实现
+- [x] T-002: CLI 实现
+- [x] T-003: GUI 实现
+- [x] T-004: 多线程机制
+- [x] T-005: 文档同步
+
+### Phase 2: GUI Optimization & High Availability (Completed)
+- [x] T-006: 配置持久化 (ConfigManager)
+- [x] T-007: 任务控制 (Cancel Button)
+- [x] T-008: 错误隔离与日志优化 (Error Handling)
+
+### Phase 3: Smart Concurrency (Completed)
+- [x] T-010: 智能默认线程数 (CPU Count)
+- [x] T-011: 限制 UI 最大线程数
+- [x] T-012: 低负载模式 (Low Resource Mode)
+
+### Phase 4: Feature Parity (Completed)
+- [x] T-013: SVG 支持 (svgo/scour)
+- [x] T-014: UI 增强 (Mode, Metadata)
+- [x] T-015: 统计摘要
+
+### Phase 5: Delivery & Documentation (Completed)
+- [x] T-016: 编写用户手册 (USER_GUIDE.md)
+- [x] T-017: 创建打包配置 (PyInstaller)
+- [x] T-018: 更新项目主页 (README.md)
+
+### Phase 6: Maintenance (Completed)
+- [x] T-019: 固定依赖版本 (Pin requirements.txt)
+
+### Phase 7: Packaging Extension (Completed)
+- [x] T-020: Debian 打包脚本 (build_deb.py)
+- [x] T-021: 更新打包文档
+
+### Phase 8: CI/CD (To Do)
+- [ ] T-022: GitHub Actions Workflow (release.yml)
+- [ ] T-023: CI 文档更新
+
+### Phase 9: Branding Update (Completed)
+- [x] T-024: 更新维护者信息 (Terry Chan)
+
+### Phase 10: UX Polish (Completed)
+- [x] T-025: 实现高 DPI 适配
+
+### Phase 11: Branding Fix (Completed)
+- [x] T-026: 更新窗口标题和 AppID
+
+### Phase 12: Config Path Fix (Completed)
+- [x] T-027: 跨平台配置路径规范化
+
+### Phase 13: Icon & Install Polish (Completed)
+- [x] T-028: 图标生成脚本
+- [x] T-029: 构建脚本集成图标
+- [x] T-030: 安装文档更新
+
+### Phase 14: UI Enhance (Completed)
+- [x] T-031: 动态 UI 缩放
+
+### Phase 15: Configurable UI (Completed)
+- [x] T-032: 手动 UI 缩放配置
+
+## SpecKit 核心功能命令 (Core Commands)
+
+### 🎯 四阶段核心工作流
+| 阶段 | 命令 | 用途 |
+|------|------|------|
+| 1️⃣ | `@/speckit.specify` | 将功能需求转化为清晰的规范文档 |
+| 2️⃣ | `@/speckit.plan` | 制定功能的技术实现方案 |
+| 3️⃣ | `@/speckit.tasks` | 将技术方案分解为可执行的任务清单 |
+| 4️⃣ | `@/speckit.implement` | 按任务清单逐步实现功能代码 |
+
+### 🔧 辅助命令
+| 命令 | 用途 | 使用时机 |
+|------|------|----------|
+| `@/speckit.constitution` | 定义项目的核心原则和开发规范 | 项目开始时（可选） |
+| `@/speckit.clarify` | 解决规范中的模糊和歧义问题 | 规范化后（可选） |
+| `@/speckit.analyze` | 检查规范、计划、任务的一致性 | 实现前（可选） |
+| `@/speckit.checklist` | 生成需求质量验证清单 | 任何阶段 |
