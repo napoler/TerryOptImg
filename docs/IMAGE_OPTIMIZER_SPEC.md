@@ -1,9 +1,10 @@
-# SpecKit Specification: Image Optimizer (Curtail Replica)
+# SpecKit 规格说明书: 图像优化器 (Curtail 复刻版)
 
-> **版本**: v1.0.0
+> **版本**: v1.1.0
 > **提示词类型**: Image Optimizer Implementation
-> **适用场景**: Local Image Compression and Optimization
-> **预期效果**: Functional replica of Curtail with GUI and CLI
+> **适用场景**: 本地图像压缩与优化
+> **预期效果**: 具备GUI和CLI的高性能Curtail复刻版
+> **语言要求**: 中文 (Chinese)
 
 ## 🎯 第一阶段：Constitution (宪法阶段)
 
@@ -12,74 +13,116 @@
 # Image Optimizer Constitution
 
 ## 核心原则
-1. **Functional Replication**: Must replicate key Curtail features (compression, resizing, format conversion).
-2. **User Experience**: GUI must be responsive (no freezing) and provide progress feedback.
-3. **Data Safety**: Default to non-destructive operations (save to new folder) unless overwrite is explicitly requested.
-4. **Performance**: Utilize concurrency for batch processing.
+1. **功能复刻**: 必须完美复刻Curtail的核心功能（压缩、缩放、格式转换）。
+2. **用户体验**: GUI必须响应迅速，不卡死，并提供精确的进度反馈。
+3. **数据安全**: 默认采用非破坏性操作（保存到新目录），除非用户明确勾选“覆盖源文件”。
+4. **高性能**: 利用多线程并发处理，充分利用多核CPU。
 
 ## 技术约束
-- **Language**: Python 3.8+
-- **GUI Framework**: Tkinter (Standard Library)
-- **Dependencies**: Pillow, tqdm (minimal external deps)
-- **External Tools**: Support `jpegoptim`, `pngquant` if available, but must function without them.
+- **开发语言**: Python 3.8+
+- **GUI框架**: Tkinter (Python标准库)
+- **核心依赖**: Pillow (图像处理), tqdm (CLI进度条)
+- **外部工具**: 优先调用 `jpegoptim`, `pngquant` 进行无损/有损压缩，若未安装则自动回退到Pillow内部优化。
 
 ## 明确不做的事
-- ❌ Do not implement complex image editing (cropping, filters) beyond resizing.
-- ❌ Do not enforce external tool installation (must fail gracefully/fallback).
+- ❌ 不实现复杂的图像编辑功能（如裁剪、滤镜、旋转）。
+- ❌ 不强制用户安装外部二进制工具（必须有Fallback机制）。
+- ❌ 不在主线程进行耗时操作（避免GUI假死）。
 ```
 
 ## 📝 第二阶段：Specification (规范阶段)
 
 ### 功能需求清单 (FR-XXX)
-```markdown
-## Functional Requirements
 
-### FR-001: Image Compression
-- Description: Compress JPG, PNG, WebP images.
-- Acceptance Criteria: Reduce file size while maintaining visual quality. Use external tools if available.
+#### FR-001: 智能图像压缩
+- **描述**: 对JPG, PNG, WebP格式进行智能压缩。
+- **详细逻辑**:
+    1. 检测系统中是否存在 `jpegoptim` (针对JPG) 和 `pngquant` (针对PNG)。
+    2. 若存在，使用外部工具进行压缩（保留元数据的选项由用户决定，默认去除）。
+    3. 若不存在，或目标格式为WebP，或进行格式转换/缩放时，使用 Pillow 的 `optimize=True` 和 `quality` 参数保存。
+- **验收标准**:
+    - 文件体积显著减小。
+    - 视觉质量在设定范围内（默认Quality=85）。
+    - 缺少外部工具时不报错，平滑降级。
 
-### FR-002: Image Resizing
-- Description: Resize images to a maximum dimension while maintaining aspect ratio.
-- Acceptance Criteria: Images exceeding max dimension are downscaled; smaller images are untouched.
+#### FR-002: 智能图像缩放
+- **描述**: 将图像限制在指定的最大尺寸内。
+- **详细逻辑**:
+    1. 获取原始图像尺寸 (W, H)。
+    2. 若 max(W, H) > Max_Size，计算缩放比例 Ratio = Max_Size / max(W, H)。
+    3. 新尺寸 = (W * Ratio, H * Ratio)。
+    4. 使用 `Image.Resampling.LANCZOS` 算法进行高质量缩放。
+- **验收标准**:
+    - 处理后的图像长边不超过 Max_Size。
+    - 图像长宽比保持不变。
+    - 小于 Max_Size 的图像保持原样（不放大）。
 
-### FR-003: Format Conversion
-- Description: Convert images between JPG, PNG, WebP.
-- Acceptance Criteria: User can select target format.
+#### FR-003: 多格式转换
+- **描述**: 支持 JPG, PNG, WebP 之间的相互转换。
+- **详细逻辑**:
+    1. 用户选择目标格式（或“保持原格式”）。
+    2. 若目标格式为 JPG 且源图有透明通道（RGBA），自动填充白色背景或丢弃透明度（转换为RGB）。
+    3. 修改输出文件后缀名。
+- **验收标准**:
+    - 输出文件格式正确。
+    - 透明PNG转JPG时无报错（背景处理正确）。
 
-### FR-004: Graphical User Interface
-- Description: Tkinter-based GUI for selecting files/folders and settings.
-- Acceptance Criteria: Responsive UI, Progress Bar, Settings controls.
+#### FR-004: 图形用户界面 (GUI)
+- **描述**: 基于 Tkinter 的可视化操作界面。
+- **界面元素**:
+    - **文件区**: “添加文件”、“添加文件夹”按钮，显示选中文件数量。
+    - **设置区**:
+        - 质量滑块/输入框 (1-100)。
+        - 线程数选择 (1-32)。
+        - 最大尺寸输入框 (像素)。
+        - 目标格式下拉框 (Original, JPG, PNG, WebP)。
+        - “覆盖源文件”复选框。
+        - “选择输出目录”按钮（覆盖未勾选时可用）。
+    - **进度区**: 进度条 (0-100%)，状态标签（“正在处理 5/10...”）。
+    - **日志区**: 滚动文本框，实时显示处理结果（成功/失败）。
+- **验收标准**:
+    - 布局整齐，无重叠。
+    - 窗口大小可调整。
+    - 操作流畅，处理时界面不卡顿。
 
-### FR-005: Concurrency
-- Description: Process multiple images in parallel.
-- Acceptance Criteria: User adjustable worker count, UI remains responsive.
-```
+#### FR-005: 高并发处理
+- **描述**: 使用多线程加速批量处理。
+- **详细逻辑**:
+    1. 使用 `concurrent.futures.ThreadPoolExecutor`。
+    2. 线程数默认为 4，用户可调。
+    3. 使用 `queue.Queue` 将子线程的进度和日志传回主线程（GUI线程）。
+    4. 主线程通过 `after()` 轮询队列更新UI。
+- **验收标准**:
+    - 处理速度随线程数增加而提升（在IO/CPU允许范围内）。
+    - 进度条更新平滑。
+    - 随时可查看已完成的任务日志。
 
 ## 🏗️ 第三阶段：Plan (计划阶段)
 
-### Architecture Strategy
+### 架构设计
 ```python
-# Architecture Overview
+# 核心逻辑与UI分离
 class ImageOptimizer:
-    """Core logic for optimization, decoupled from UI."""
-    def process_file(self, path): ...
+    """负责具体的图像处理逻辑，不含任何GUI代码"""
+    def process_file(self, file_path: Path) -> str: ...
 
 class OptimizerApp(tk.Tk):
-    """GUI Layer."""
-    def run_optimizer(self): ...
+    """负责界面展示和线程调度"""
+    def start_processing(self): ...
+    def update_ui_from_queue(self): ...
 ```
 
-### Implementation Strategy
-1.  **Core Logic**: Implement `src/image_optimizer.py` first.
-2.  **CLI**: Add `main()` for CLI usage.
-3.  **GUI**: Implement `src/image_optimizer_gui.py` consuming `ImageOptimizer`.
-4.  **Threading**: Use `concurrent.futures.ThreadPoolExecutor` in the GUI thread handling.
+### 实施策略
+1.  **核心优先**: 先完善 `ImageOptimizer` 类，确保单元测试通过。
+2.  **CLI适配**: 确保命令行工具可用，方便脚本调用。
+3.  **GUI封装**: 最后开发 Tkinter 界面，调用核心类。
+4.  **文档对齐**: 确保代码注释中包含 `@spec: FR-XXX` 标记。
 
 ## 📋 第四阶段：Tasks (任务阶段)
 
-### Implementation Tasks
-- [x] T-001: Implement `ImageOptimizer` class with resizing and conversion logic.
-- [x] T-002: Implement CLI argument parsing.
-- [x] T-003: Implement `OptimizerApp` Tkinter GUI.
-- [x] T-004: Implement Threading and Queue for UI updates.
-- [x] T-005: Verify functionality with test images.
+### 开发任务
+- [x] T-001: 实现 `ImageOptimizer` 类（含缩放、转换、压缩）。
+- [x] T-002: 实现 CLI 参数解析 (`argparse`)。
+- [x] T-003: 实现 `OptimizerApp` GUI 界面布局。
+- [x] T-004: 实现多线程队列通信机制。
+- [ ] T-005: (文档) 将规范同步至 `AGENTS.md` 等配置文件。
