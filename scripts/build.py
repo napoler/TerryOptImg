@@ -25,6 +25,10 @@ def build():
         "--windowed",
         "--name", "ImageOptimizer",
         "--clean",
+        "--hidden-import=PIL.TiffImagePlugin",
+        "--hidden-import=PIL.JpegImagePlugin",
+        "--hidden-import=PIL.PngImagePlugin",
+        "--hidden-import=PIL.WebPImagePlugin",
         str(src_script)
     ]
 

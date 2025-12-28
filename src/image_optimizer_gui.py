@@ -11,6 +11,25 @@ import sys
 # Ensure src is in path if running from root
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Import Utils
+try:
+    from utils.config_manager import ConfigManager
+except ImportError:
+    try:
+        from src.utils.config_manager import ConfigManager
+    except ImportError:
+        # Fallback if structure is flat or different
+        ConfigManager = None
+
+# Import Settings Dialog
+try:
+    from settings_gui import SettingsDialog
+except ImportError:
+    try:
+        from src.settings_gui import SettingsDialog
+    except ImportError:
+        SettingsDialog = None
+
 try:
     from image_optimizer import ImageOptimizer
 except ImportError:
@@ -30,13 +49,34 @@ class OptimizerApp(tk.Tk):
         super().__init__()
         self.title("TerryOptImg - Image Optimizer")
 
+        # Initialize Config Manager
+        if ConfigManager:
+            self.config_manager = ConfigManager()
+        else:
+            self.config_manager = None
+            print("Warning: ConfigManager not loaded.")
+
         # Dynamic Scaling
         try:
             dpi = self.winfo_fpixels('1i')
         except Exception:
             dpi = 96.0
 
-        self.scale = max(1.0, dpi / 96.0)
+        # Load scale from config if available
+        user_scale = 1.0
+        if self.config_manager:
+            user_scale = self.config_manager.get("ui_scale", 1.0)
+
+        # Use user scale if explicitly set > 1.0 (or just use it as multiplier?)
+        # Let's assume user_scale overrides auto-detection if it's not 1.0 (default)
+        # OR better: user_scale *is* the scale to use if we want manual control.
+        # But for now, let's just use it if it seems intentional.
+        # Actually, let's respect the settings dialog intent: manual override.
+        if user_scale != 1.0:
+            self.scale = user_scale
+        else:
+            self.scale = max(1.0, dpi / 96.0)
+
         width = int(600 * self.scale)
         height = int(700 * self.scale)
         self.geometry(f"{width}x{height}")
@@ -80,8 +120,12 @@ class OptimizerApp(tk.Tk):
         ttk.Button(btn_frame, text="Add Files", command=self.select_files).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="Add Folder", command=self.select_folder).pack(side=tk.LEFT, padx=2)
 
+        # Settings Button (New)
+        if SettingsDialog:
+            ttk.Button(main_frame, text="⚙ Settings", command=self.open_settings).pack(anchor=tk.E, padx=5)
+
         # Settings Area
-        settings_frame = ttk.LabelFrame(main_frame, text="Settings", padding="5")
+        settings_frame = ttk.LabelFrame(main_frame, text="Quick Settings", padding="5")
         settings_frame.pack(fill=tk.X, pady=5)
 
         # Grid layout for settings
@@ -319,43 +363,50 @@ class OptimizerApp(tk.Tk):
             self.after(100, self._check_queue)
 
     def load_config(self):
-        config_path = Path("config.json")
-        if config_path.exists():
-            try:
-                with open(config_path, "r") as f:
-                    config = json.load(f)
-                    self.mode_var.set(config.get("mode", "Lossy"))
-                    self.keep_metadata_var.set(config.get("keep_metadata", False))
-                    self.quality_var.set(config.get("quality", 85))
-                    self.workers_var.set(config.get("workers", 4))
-                    self.max_size_var.set(config.get("max_size", ""))
-                    self.format_var.set(config.get("format", "Keep Original"))
-                    self.overwrite_var.set(config.get("overwrite", False))
-                    out_dir = config.get("output_dir", None)
-                    if out_dir:
-                        self.output_path = out_dir
-                        self.output_label.config(text=f"Output: {self.output_path}")
-                    self.toggle_output() # Refresh UI state
-                    self.toggle_mode() # Refresh mode state
-            except Exception as e:
-                print(f"Failed to load config: {e}")
+        if not self.config_manager:
+            return
+
+        # Load values from ConfigManager
+        self.mode_var.set(self.config_manager.get("mode", "Lossy"))
+        self.keep_metadata_var.set(self.config_manager.get("keep_metadata", False))
+        self.quality_var.set(self.config_manager.get("quality", 85))
+        self.workers_var.set(self.config_manager.get("workers", 4))
+        self.max_size_var.set(self.config_manager.get("max_size", ""))
+        self.format_var.set(self.config_manager.get("format", "Keep Original"))
+        self.overwrite_var.set(self.config_manager.get("overwrite", False))
+
+        out_dir = self.config_manager.get("output_dir", None)
+        if out_dir:
+            self.output_path = out_dir
+            self.output_label.config(text=f"Output: {self.output_path}")
+
+        self.toggle_output() # Refresh UI state
+        self.toggle_mode() # Refresh mode state
 
     def save_config(self):
-        config = {
-            "mode": self.mode_var.get(),
-            "keep_metadata": self.keep_metadata_var.get(),
-            "quality": self.quality_var.get(),
-            "workers": self.workers_var.get(),
-            "max_size": self.max_size_var.get(),
-            "format": self.format_var.get(),
-            "overwrite": self.overwrite_var.get(),
-            "output_dir": self.output_path
-        }
-        try:
-            with open("config.json", "w") as f:
-                json.dump(config, f)
-        except Exception as e:
-            print(f"Failed to save config: {e}")
+        if not self.config_manager:
+            return
+
+        self.config_manager.set("mode", self.mode_var.get())
+        self.config_manager.set("keep_metadata", self.keep_metadata_var.get())
+        self.config_manager.set("quality", self.quality_var.get())
+        self.config_manager.set("workers", self.workers_var.get())
+        self.config_manager.set("max_size", self.max_size_var.get())
+        self.config_manager.set("format", self.format_var.get())
+        self.config_manager.set("overwrite", self.overwrite_var.get())
+        self.config_manager.set("output_dir", self.output_path)
+
+        self.config_manager.save()
+
+    def open_settings(self):
+        if SettingsDialog and self.config_manager:
+            SettingsDialog(self, self.config_manager, on_save_callback=self.on_settings_saved)
+
+    def on_settings_saved(self):
+        # Refresh UI with new settings
+        self.load_config()
+        # Notify about restart for scale
+        # messagebox.showinfo("Info", "Some settings (like UI Scale) require a restart to take effect.")
 
     def on_close(self):
         self.save_config()
