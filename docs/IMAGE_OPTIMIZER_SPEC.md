@@ -189,6 +189,15 @@
     - 快速开始。
     - 贡献指南链接。
 
+#### FR-017: Debian 打包支持
+- **描述**: 在 Linux 平台上生成标准的 .deb 安装包。
+- **详细要求**:
+    - 自动生成 `DEBIAN/control` 文件。
+    - 包含桌面快捷方式 (`image-optimizer.desktop`)。
+    - 声明依赖 (python3, pillow, etc. 或 bundled)。
+    - 安装路径: `/usr/bin/image-optimizer`。
+- **验收标准**: 生成的 .deb 可通过 `dpkg -i` 安装并运行。
+
 ## 🏗️ 第三阶段：Plan (计划阶段)
 
 ### 架构设计
