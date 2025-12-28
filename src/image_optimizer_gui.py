@@ -29,10 +29,11 @@ class OptimizerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("SpecKit Image Optimizer (Curtail Replica)")
-        self.geometry("600x600")
+        self.geometry("600x700")
 
         self.files_to_process = []
         self.processing = False
+        self.session_saved_size = 0
         self.queue = queue.Queue()
         self.cancel_event = threading.Event()
 
@@ -64,34 +65,44 @@ class OptimizerApp(tk.Tk):
         settings_frame.pack(fill=tk.X, pady=5)
 
         # Grid layout for settings
-        # Row 0: Quality & Workers
-        ttk.Label(settings_frame, text="Quality (0-100):").grid(row=0, column=0, sticky=tk.W)
+        # Row 0: Mode & Keep Metadata
+        ttk.Label(settings_frame, text="Mode:").grid(row=0, column=0, sticky=tk.W)
+        self.mode_var = tk.StringVar(value="Lossy")
+        ttk.Radiobutton(settings_frame, text="Lossy", variable=self.mode_var, value="Lossy", command=self.toggle_mode).grid(row=0, column=1, sticky=tk.W)
+        ttk.Radiobutton(settings_frame, text="Lossless", variable=self.mode_var, value="Lossless", command=self.toggle_mode).grid(row=0, column=2, sticky=tk.W)
+
+        self.keep_metadata_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(settings_frame, text="Keep Metadata", variable=self.keep_metadata_var).grid(row=0, column=3, sticky=tk.W, padx=5)
+
+        # Row 1: Quality & Workers
+        ttk.Label(settings_frame, text="Quality (0-100):").grid(row=1, column=0, sticky=tk.W)
         self.quality_var = tk.IntVar(value=85)
-        ttk.Spinbox(settings_frame, from_=1, to=100, textvariable=self.quality_var, width=5).grid(row=0, column=1, sticky=tk.W, padx=5)
+        self.quality_spin = ttk.Spinbox(settings_frame, from_=1, to=100, textvariable=self.quality_var, width=5)
+        self.quality_spin.grid(row=1, column=1, sticky=tk.W, padx=5)
 
-        ttk.Label(settings_frame, text="Workers:").grid(row=0, column=2, sticky=tk.W)
+        ttk.Label(settings_frame, text="Workers:").grid(row=1, column=2, sticky=tk.W)
         self.workers_var = tk.IntVar(value=4)
-        ttk.Spinbox(settings_frame, from_=1, to=32, textvariable=self.workers_var, width=5).grid(row=0, column=3, sticky=tk.W, padx=5)
+        ttk.Spinbox(settings_frame, from_=1, to=32, textvariable=self.workers_var, width=5).grid(row=1, column=3, sticky=tk.W, padx=5)
 
-        # Row 1: Max Size & Format
-        ttk.Label(settings_frame, text="Max Width/Height:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        # Row 2: Max Size & Format
+        ttk.Label(settings_frame, text="Max Width/Height:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.max_size_var = tk.StringVar(value="")
-        ttk.Entry(settings_frame, textvariable=self.max_size_var, width=10).grid(row=1, column=1, sticky=tk.W, padx=5)
+        ttk.Entry(settings_frame, textvariable=self.max_size_var, width=10).grid(row=2, column=1, sticky=tk.W, padx=5)
 
-        ttk.Label(settings_frame, text="Format:").grid(row=1, column=2, sticky=tk.W, pady=5)
+        ttk.Label(settings_frame, text="Format:").grid(row=2, column=2, sticky=tk.W, pady=5)
         self.format_var = tk.StringVar(value="Keep Original")
-        ttk.Combobox(settings_frame, textvariable=self.format_var, values=["Keep Original", "jpg", "png", "webp"], state="readonly", width=12).grid(row=1, column=3, sticky=tk.W, padx=5)
+        ttk.Combobox(settings_frame, textvariable=self.format_var, values=["Keep Original", "jpg", "png", "webp"], state="readonly", width=12).grid(row=2, column=3, sticky=tk.W, padx=5)
 
-        # Row 2: Output & Overwrite
+        # Row 3: Output & Overwrite
         self.overwrite_var = tk.BooleanVar(value=False)
         self.overwrite_chk = ttk.Checkbutton(settings_frame, text="Overwrite Input Files", variable=self.overwrite_var, command=self.toggle_output)
-        self.overwrite_chk.grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=5)
+        self.overwrite_chk.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=5)
 
         self.output_btn = ttk.Button(settings_frame, text="Select Output Folder", command=self.select_output)
-        self.output_btn.grid(row=2, column=2, columnspan=2, sticky=tk.W)
+        self.output_btn.grid(row=3, column=2, columnspan=2, sticky=tk.W)
         self.output_path = None
         self.output_label = ttk.Label(settings_frame, text="Default: ./optimized/")
-        self.output_label.grid(row=3, column=0, columnspan=4, sticky=tk.W)
+        self.output_label.grid(row=4, column=0, columnspan=4, sticky=tk.W)
 
         # Progress Area
         progress_frame = ttk.Frame(main_frame, padding="5")
@@ -145,6 +156,14 @@ class OptimizerApp(tk.Tk):
         count = len(self.files_to_process)
         self.file_label.config(text=f"{count} files selected")
 
+    def toggle_mode(self):
+        if self.mode_var.get() == "Lossless":
+            self.quality_var.set(100)
+            self.quality_spin.state(['disabled'])
+        else:
+            self.quality_var.set(85)
+            self.quality_spin.state(['!disabled'])
+
     def toggle_output(self):
         if self.overwrite_var.get():
             self.output_btn.state(['disabled'])
@@ -175,6 +194,7 @@ class OptimizerApp(tk.Tk):
             return
 
         self.processing = True
+        self.session_saved_size = 0
         self.cancel_event.clear()
         self.start_btn.state(['disabled'])
         self.stop_btn.state(['!disabled'])
@@ -209,7 +229,8 @@ class OptimizerApp(tk.Tk):
             max_size=max_size,
             target_format=target_format,
             overwrite=self.overwrite_var.get(),
-            quality=self.quality_var.get()
+            quality=self.quality_var.get(),
+            keep_metadata=self.keep_metadata_var.get()
         )
 
         total = len(self.files_to_process)
@@ -229,10 +250,9 @@ class OptimizerApp(tk.Tk):
             for future in futures:
                 try:
                     result = future.result()
-                    is_error = result.startswith("Error")
-                    tag = "error" if is_error else "success"
+                    # Result is now a dict
                     self.queue.put(("progress", (completed + 1, total)))
-                    self.queue.put(("log", (result, tag)))
+                    self.queue.put(("log", result))
                 except Exception as e:
                     self.queue.put(("log", (f"Exception: {e}", "error")))
 
@@ -249,7 +269,14 @@ class OptimizerApp(tk.Tk):
                     self.progress_var.set((completed / total) * 100)
                     self.status_label.config(text=f"Processing: {completed}/{total}")
                 elif msg_type == "log":
-                    if isinstance(data, tuple):
+                    if isinstance(data, dict):
+                        # Structured log
+                        msg = data.get("message", "")
+                        tag = "success" if data.get("success") else "error"
+                        if data.get("success"):
+                            self.session_saved_size += (data.get("original_size", 0) - data.get("new_size", 0))
+                        self.log(msg, tag)
+                    elif isinstance(data, tuple):
                         self.log(data[0], data[1])
                     else:
                         self.log(data)
@@ -258,10 +285,14 @@ class OptimizerApp(tk.Tk):
                     self.start_btn.state(['!disabled'])
                     self.stop_btn.state(['disabled'])
                     self.status_label.config(text="Completed!" if not self.cancel_event.is_set() else "Cancelled!")
+
+                    saved_kb = self.session_saved_size / 1024
+                    stats_msg = f"Total Saved: {saved_kb:.2f} KB"
+
                     if not self.cancel_event.is_set():
-                        messagebox.showinfo("Done", "Optimization Complete!")
+                        messagebox.showinfo("Done", f"Optimization Complete!\n{stats_msg}")
                     else:
-                        messagebox.showinfo("Cancelled", "Optimization Stopped.")
+                        messagebox.showinfo("Cancelled", f"Optimization Stopped.\n{stats_msg}")
         except queue.Empty:
             pass
         finally:
@@ -273,6 +304,8 @@ class OptimizerApp(tk.Tk):
             try:
                 with open(config_path, "r") as f:
                     config = json.load(f)
+                    self.mode_var.set(config.get("mode", "Lossy"))
+                    self.keep_metadata_var.set(config.get("keep_metadata", False))
                     self.quality_var.set(config.get("quality", 85))
                     self.workers_var.set(config.get("workers", 4))
                     self.max_size_var.set(config.get("max_size", ""))
@@ -283,11 +316,14 @@ class OptimizerApp(tk.Tk):
                         self.output_path = out_dir
                         self.output_label.config(text=f"Output: {self.output_path}")
                     self.toggle_output() # Refresh UI state
+                    self.toggle_mode() # Refresh mode state
             except Exception as e:
                 print(f"Failed to load config: {e}")
 
     def save_config(self):
         config = {
+            "mode": self.mode_var.get(),
+            "keep_metadata": self.keep_metadata_var.get(),
             "quality": self.quality_var.get(),
             "workers": self.workers_var.get(),
             "max_size": self.max_size_var.get(),

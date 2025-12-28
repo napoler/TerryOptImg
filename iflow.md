@@ -34,6 +34,11 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [x] T-011: 限制 UI 最大线程数
 - [x] T-012: 低负载模式 (Low Resource Mode)
 
+### Phase 4: Feature Parity (Completed)
+- [x] T-013: SVG 支持 (svgo/scour)
+- [x] T-014: UI 增强 (Mode, Metadata)
+- [x] T-015: 统计摘要
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流

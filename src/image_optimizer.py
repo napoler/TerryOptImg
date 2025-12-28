@@ -18,21 +18,39 @@ class ImageOptimizer:
                  max_size: Optional[int] = None,
                  target_format: Optional[str] = None,
                  overwrite: bool = False,
-                 quality: int = 85):
+                 quality: int = 85,
+                 keep_metadata: bool = False):
         self.output_dir = Path(output_dir) if output_dir else None
         self.max_size = max_size
         self.target_format = target_format.lower() if target_format else None
         self.overwrite = overwrite
         self.quality = quality
+        self.keep_metadata = keep_metadata
 
         # Check tools
         self.has_jpegoptim = shutil.which('jpegoptim') is not None
         self.has_pngquant = shutil.which('pngquant') is not None
-        # cwebp check is optional if we use PIL for webp, but good to have
-        self.has_cwebp = shutil.which('cwebp') is not None
+        self.has_svgo = shutil.which('svgo') is not None
+        self.has_scour = shutil.which('scour') is not None
 
-    def process_file(self, file_path: Path) -> str:
+    def process_file(self, file_path: Path) -> dict:
+        result = {
+            "path": str(file_path),
+            "success": False,
+            "original_size": 0,
+            "new_size": 0,
+            "message": ""
+        }
         try:
+            if not file_path.exists():
+                raise FileNotFoundError("File not found")
+
+            result["original_size"] = file_path.stat().st_size
+
+            # SVG Handling
+            if file_path.suffix.lower() == '.svg':
+                return self.process_svg(file_path, result)
+
             img = Image.open(file_path)
 
             # Determine output path
@@ -66,46 +84,83 @@ class ImageOptimizer:
                     new_size = (int(w * ratio), int(h * ratio))
                     img = img.resize(new_size, Image.Resampling.LANCZOS)
 
-            # Save (intermediate or final)
-            # If we are converting or resizing, we MUST save via PIL first
-            # If inputs match outputs and no resize, we might copy then optimize
+            # Save logic
+            save_kwargs = {}
+            if self.keep_metadata and 'exif' in img.info:
+                save_kwargs['exif'] = img.info['exif']
+
             needs_pil_save = (self.max_size is not None) or \
                              (self.target_format is not None and self.target_format != current_ext) or \
                              (not out_path.exists() and out_path != file_path)
 
             if needs_pil_save:
-                # Save using PIL with optimization
                 if save_ext in ['jpg', 'jpeg']:
-                    img = img.convert('RGB') # JPG doesn't support alpha
-                    img.save(out_path, quality=self.quality, optimize=True)
+                    img = img.convert('RGB')
+                    img.save(out_path, quality=self.quality, optimize=True, **save_kwargs)
                 elif save_ext == 'png':
-                    img.save(out_path, optimize=True)
+                    img.save(out_path, optimize=True, **save_kwargs)
                 elif save_ext == 'webp':
-                    img.save(out_path, quality=self.quality, method=6)
+                    img.save(out_path, quality=self.quality, method=6, **save_kwargs)
                 else:
-                    img.save(out_path)
+                    img.save(out_path, **save_kwargs)
             elif out_path != file_path:
-                 # Just copy if no resize/convert needed but output dir is different
                  shutil.copy2(file_path, out_path)
 
-            # Post-process with external tools if available and file exists
             if out_path.exists():
                 self.optimize_external(out_path)
 
-            return f"Processed: {file_path.name}"
+            result["success"] = True
+            result["new_size"] = out_path.stat().st_size
+            result["message"] = f"Processed ({result['original_size']} -> {result['new_size']})"
+            return result
 
         except Exception as e:
-            return f"Error {file_path.name}: {str(e)}"
+            result["message"] = f"Error {file_path.name}: {str(e)}"
+            return result
+
+    def process_svg(self, file_path: Path, result: dict) -> dict:
+        # SVG logic
+        if self.output_dir:
+            out_path = self.output_dir / file_path.name
+        else:
+            out_path = file_path # Overwrite?
+            if not self.overwrite:
+                 parent = file_path.parent
+                 out_path = parent / "optimized" / file_path.name
+                 out_path.parent.mkdir(exist_ok=True)
+
+        # Copy first
+        if out_path != file_path:
+            shutil.copy2(file_path, out_path)
+
+        if self.has_svgo:
+            # svgo input output
+            cmd = ['svgo', str(out_path)]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif self.has_scour:
+            # scour -i in -o out
+            cmd = ['scour', '-i', str(out_path), '-o', str(out_path) + '.tmp']
+            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res.returncode == 0:
+                shutil.move(str(out_path) + '.tmp', str(out_path))
+
+        result["success"] = True
+        result["new_size"] = out_path.stat().st_size if out_path.exists() else 0
+        result["message"] = "SVG Optimized"
+        return result
 
     def optimize_external(self, file_path: Path):
         ext = file_path.suffix.lower()
         if ext in ['.jpg', '.jpeg'] and self.has_jpegoptim:
-             subprocess.run(['jpegoptim', '--strip-all', '-m', str(self.quality), str(file_path)],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+             cmd = ['jpegoptim', '-m', str(self.quality), str(file_path)]
+             if not self.keep_metadata:
+                 cmd.append('--strip-all')
+             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         elif ext == '.png' and self.has_pngquant:
-             # pngquant creates a new file by default, replace it
-             subprocess.run(['pngquant', '--force', '--ext', '.png', '--quality', f'65-{self.quality}', str(file_path)],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+             cmd = ['pngquant', '--force', '--ext', '.png', '--quality', f'65-{self.quality}', str(file_path)]
+             if not self.keep_metadata:
+                 cmd.append('--strip')
+             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def main():
     parser = argparse.ArgumentParser(description="SpecKit Image Optimizer (Curtail Replica)")
@@ -139,15 +194,21 @@ def main():
         max_size=args.max_size,
         target_format=args.format,
         overwrite=args.overwrite,
-        quality=args.quality
+        quality=args.quality,
+        keep_metadata=False # CLI default
     )
 
     print(f"Processing {len(files)} files with {args.workers} workers...")
 
+    total_saved = 0
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         results = list(tqdm(executor.map(optimizer.process_file, files), total=len(files), unit="img"))
+        for res in results:
+            if res['success']:
+                saved = res['original_size'] - res['new_size']
+                total_saved += saved
 
-    print("Done.")
+    print(f"Done. Total saved: {total_saved / 1024:.2f} KB")
 
 if __name__ == "__main__":
     main()
