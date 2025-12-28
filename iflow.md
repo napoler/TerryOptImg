@@ -47,9 +47,13 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 ### Phase 6: Maintenance (Completed)
 - [x] T-019: 固定依赖版本 (Pin requirements.txt)
 
-### Phase 7: Packaging Extension (To Do)
-- [ ] T-020: Debian 打包脚本 (build_deb.py)
-- [ ] T-021: 更新打包文档
+### Phase 7: Packaging Extension (Completed)
+- [x] T-020: Debian 打包脚本 (build_deb.py)
+- [x] T-021: 更新打包文档
+
+### Phase 8: CI/CD (To Do)
+- [ ] T-022: GitHub Actions Workflow (release.yml)
+- [ ] T-023: CI 文档更新
 
 ## SpecKit 核心功能命令 (Core Commands)
 
