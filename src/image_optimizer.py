@@ -3,15 +3,22 @@ import sys
 import argparse
 import subprocess
 import shutil
+import tempfile
+import gc
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Callable, Dict, Any
 from tqdm import tqdm
-from PIL import Image
+from PIL import Image, ImageOps
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class ImageOptimizer:
     """
-    Image Optimizer Logic.
+    Enhanced Image Optimizer with advanced compression algorithms.
     @spec: FR-001 (Compression), FR-002 (Resize), FR-003 (Conversion)
     """
     def __init__(self, output_dir: Optional[str] = None,
@@ -19,19 +26,40 @@ class ImageOptimizer:
                  target_format: Optional[str] = None,
                  overwrite: bool = False,
                  quality: int = 85,
-                 keep_metadata: bool = False):
+                 keep_metadata: bool = False,
+                 progress_callback: Optional[Callable[[str, int, int], None]] = None):
         self.output_dir = Path(output_dir) if output_dir else None
         self.max_size = max_size
         self.target_format = target_format.lower() if target_format else None
         self.overwrite = overwrite
         self.quality = quality
         self.keep_metadata = keep_metadata
+        self.progress_callback = progress_callback
 
-        # Check tools
+        # Enhanced tool detection
         self.has_jpegoptim = shutil.which('jpegoptim') is not None
         self.has_pngquant = shutil.which('pngquant') is not None
         self.has_svgo = shutil.which('svgo') is not None
         self.has_scour = shutil.which('scour') is not None
+        self.has_optipng = shutil.which('optipng') is not None
+        self.has_advpng = shutil.which('advpng') is not None
+        self.has_gifsicle = shutil.which('gifsicle') is not None
+        self.has_oxipng = shutil.which('oxipng') is not None
+        self.has_cwebp = shutil.which('cwebp') is not None
+        
+        # Log available tools
+        available_tools = []
+        if self.has_jpegoptim: available_tools.append('jpegoptim')
+        if self.has_pngquant: available_tools.append('pngquant')
+        if self.has_svgo: available_tools.append('svgo')
+        if self.has_scour: available_tools.append('scour')
+        if self.has_optipng: available_tools.append('optipng')
+        if self.has_advpng: available_tools.append('advpng')
+        if self.has_gifsicle: available_tools.append('gifsicle')
+        if self.has_oxipng: available_tools.append('oxipng')
+        if self.has_cwebp: available_tools.append('cwebp')
+        
+        logger.info(f"Available optimization tools: {', '.join(available_tools) if available_tools else 'None'}")
 
     def process_file(self, file_path: Path) -> dict:
         result = {
@@ -39,19 +67,34 @@ class ImageOptimizer:
             "success": False,
             "original_size": 0,
             "new_size": 0,
-            "message": ""
+            "message": "",
+            "compression_ratio": 0.0
         }
+        img = None
+        temp_file = None
+        
         try:
             if not file_path.exists():
-                raise FileNotFoundError("File not found")
+                raise FileNotFoundError(f"File not found: {file_path}")
 
             result["original_size"] = file_path.stat().st_size
+            
+            # Notify progress
+            if self.progress_callback:
+                self.progress_callback(f"Processing {file_path.name}", 0, 100)
 
             # SVG Handling
             if file_path.suffix.lower() == '.svg':
                 return self.process_svg(file_path, result)
 
-            img = Image.open(file_path)
+            # Load image with memory management
+            try:
+                img = Image.open(file_path)
+                # Convert to RGB if necessary for certain operations
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGBA')
+            except Exception as e:
+                raise ValueError(f"Cannot load image {file_path.name}: {str(e)}")
 
             # Determine output path
             if self.output_dir:
@@ -76,13 +119,21 @@ class ImageOptimizer:
             if self.target_format:
                 out_path = out_path.with_suffix(f'.{self.target_format}')
 
-            # Resize logic
+            # Auto-orient image based on EXIF
+            img = ImageOps.exif_transpose(img)
+            
+            # Resize logic with improved algorithm
             if self.max_size:
                 w, h = img.size
                 if max(w, h) > self.max_size:
                     ratio = self.max_size / max(w, h)
                     new_size = (int(w * ratio), int(h * ratio))
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                    # Use LANCZOS for downsizing, BICUBIC for upsizing
+                    resample = Image.Resampling.LANCZOS if ratio < 1 else Image.Resampling.BICUBIC
+                    img = img.resize(new_size, resample)
+                    
+                    if self.progress_callback:
+                        self.progress_callback(f"Resized {file_path.name} to {new_size[0]}x{new_size[1]}", 25, 100)
 
             # Save logic
             save_kwargs = {}

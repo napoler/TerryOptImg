@@ -1,32 +1,55 @@
-#!/usr/bin/env python3
-"""
-TerryOptImg - Professional Image Optimizer
-Modern Qt-based GUI application for image optimization
-"""
-
-import sys
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import threading
+import json
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import queue
 import os
+import sys
 
-# Check if Qt is available, otherwise fallback to tkinter
+# Import ttkthemes for modern themes
 try:
-    from PyQt5.QtWidgets import QApplication
-    from qt_image_optimizer import main as qt_main
-    
-    print("🚀 启动Qt版本图像优化器...")
-    qt_main()
-    
-except ImportError as e:
-    print(f"❌ Qt版本不可用: {e}")
-    print("🔄 尝试启动tkinter备用版本...")
-    
-    # Fallback to tkinter version
+    from ttkthemes import ThemedStyle
+    THEMES_AVAILABLE = True
+except ImportError:
+    THEMES_AVAILABLE = False
+    print("Warning: ttkthemes not available. Using default theme.")
+
+# Ensure src is in path if running from root
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Import Utils
+try:
+    from utils.config_manager import ConfigManager
+    from utils.language_manager import LanguageManager
+except ImportError:
     try:
-        from image_optimizer_gui_tk import main as tk_main
-        tk_main()
+        from src.utils.config_manager import ConfigManager
+        from src.utils.language_manager import LanguageManager
     except ImportError:
-        print("❌ 无法启动备用版本，请检查依赖安装")
-        print("请运行: pip install PyQt5 或 install - requirements.txt")
-        sys.exit(1)
+        # Fallback if structure is flat or different
+        ConfigManager = None
+        LanguageManager = None
+
+# Import Settings Dialog
+try:
+    from settings_gui import SettingsDialog
+except ImportError:
+    try:
+        from src.settings_gui import SettingsDialog
+    except ImportError:
+        SettingsDialog = None
+
+try:
+    from image_optimizer import ImageOptimizer
+except ImportError:
+    # If running from root without package structure
+    try:
+        from src.image_optimizer import ImageOptimizer
+    except ImportError:
+        # If running as script inside src/
+        import image_optimizer
 
 class OptimizerApp(tk.Tk):
     """
@@ -82,8 +105,8 @@ class OptimizerApp(tk.Tk):
         self._cached_scale = self.scale
 
         # Set window size with performance considerations
-        width = int(1200 * self.scale)
-        height = int(1000 * self.scale)
+        width = int(600 * self.scale)
+        height = int(700 * self.scale)
         self.geometry(f"{width}x{height}")
         
         # Optimize window rendering for better drag performance
@@ -105,7 +128,7 @@ class OptimizerApp(tk.Tk):
             pass
         
         # Set minimum size to prevent too small windows
-        self.minsize(int(1000 * self.scale), int(800 * self.scale))
+        self.minsize(int(400 * self.scale), int(500 * self.scale))
 
         # Use basic ttk style for maximum performance
         self.style = ttk.Style(self)
@@ -115,7 +138,7 @@ class OptimizerApp(tk.Tk):
         self._apply_modern_theme()
         
         # Minimal font configuration for performance with bold text
-        base_font_size = max(int(14 * self.scale), 16)
+        base_font_size = max(int(10 * self.scale), 11)
         
         # Basic font configuration with bold for better visibility
         self.style.configure('TLabel', font=('TkDefaultFont', base_font_size, 'bold'))
@@ -150,45 +173,27 @@ class OptimizerApp(tk.Tk):
                         self.current_theme = theme
                         break
             
-            # Apply ultra high contrast colors for maximum visibility
-            self.configure(bg='#ffffff')
-            
-            # Enhanced color scheme with maximum contrast
-            self.style.configure('TLabel', background='#ffffff', foreground='#000000', font=('Arial', base_font_size, 'bold'))
-            self.style.configure('TButton', background='#0066cc', foreground='#ffffff', font=('Arial', base_font_size, 'bold'))
-            self.style.configure('TEntry', fieldbackground='#ffffff', foreground='#000000', font=('Arial', base_font_size), borderwidth=3, relief='raised')
-            self.style.configure('TCombobox', fieldbackground='#ffffff', foreground='#000000', font=('Arial', base_font_size), borderwidth=3, relief='raised')
-            self.style.configure('TSpinbox', fieldbackground='#ffffff', foreground='#000000', font=('Arial', base_font_size), borderwidth=3, relief='raised')
-            self.style.configure('TCheckbutton', background='#ffffff', foreground='#000000', font=('Arial', base_font_size, 'bold'))
-            self.style.configure('TRadiobutton', background='#ffffff', foreground='#000000', font=('Arial', base_font_size, 'bold'))
-            self.style.configure('TLabelframe', background='#ffffff', foreground='#000000', font=('Arial', base_font_size + 2, 'bold'), borderwidth=3, relief='raised')
-            self.style.configure('TLabelframe.Label', background='#ffffff', foreground='#000000', font=('Arial', base_font_size + 2, 'bold'))
-            
-            # Beautiful progress bar with modern styling
-            self.style.configure('Horizontal.TProgressbar', 
-                               background='#27ae60', troughcolor='#ecf0f1', 
-                               borderwidth=0, lightcolor='#27ae60', darkcolor='#229954')
-            
-            # Modern frame styling
-            self.style.configure('TFrame', background='#f8f9fa')
-            self.style.configure('TNotebook', background='#f8f9fa', borderwidth=0)
-            self.style.configure('TNotebook.Tab', background='#ecf0f1', foreground='#2c3e50', 
-                               font=('Segoe UI', base_font_size, 'bold'), padding=[20, 10])
-            
-            # Enhanced button hover effects
-            self.style.map('TButton',
-                         background=[('active', '#004499'), ('pressed', '#003366')],
-                         foreground=[('active', '#ffffff'), ('pressed', '#ffffff')])
+            # Apply high contrast colors
+            self.configure(bg='white')
+            self.style.configure('TLabel', background='white', foreground='black')
+            self.style.configure('TButton', background='#007bff', foreground='white')
+            self.style.configure('TEntry', fieldbackground='white', foreground='black')
+            self.style.configure('TCombobox', fieldbackground='white', foreground='black')
+            self.style.configure('TSpinbox', fieldbackground='white', foreground='black')
+            self.style.configure('TCheckbutton', background='white', foreground='black')
+            self.style.configure('TRadiobutton', background='white', foreground='black')
+            self.style.configure('TLabelframe', background='white', foreground='black')
+            self.style.configure('TLabelframe.Label', background='white', foreground='black')
             
         except Exception as e:
             print(f"Theme loading warning: {e}")
 
     def _init_ui(self):
         # Simple spacing for clean layout
-        p_lg = int(30 * self.scale)
-        p_md = int(20 * self.scale)
-        p_sm = int(15 * self.scale)
-        p_xs = int(8 * self.scale)
+        p_lg = int(20 * self.scale)
+        p_md = int(12 * self.scale)
+        p_sm = int(8 * self.scale)
+        p_xs = int(4 * self.scale)
 
         # Set window background
         self.configure(bg='white')
@@ -202,7 +207,7 @@ class OptimizerApp(tk.Tk):
         header_frame.pack(fill=tk.X, pady=(0, p_md))
         
         # Title
-        title_font_size = max(int(22 * self.scale), 24)
+        title_font_size = max(int(16 * self.scale), 18)
         title_label = ttk.Label(header_frame, 
                                text="🎨 TerryOptImg - Professional Image Optimizer", 
                                font=('TkDefaultFont', title_font_size, 'bold'))
@@ -280,7 +285,7 @@ class OptimizerApp(tk.Tk):
         progress_frame.pack(fill=tk.X, pady=p_md)
 
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100, style="Horizontal.TProgressbar")
+        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100)
         self.progress_bar.pack(fill=tk.X, pady=(0, p_sm))
 
         self.status_label = ttk.Label(progress_frame, text=self._t("ready"))
