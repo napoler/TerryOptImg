@@ -64,6 +64,9 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 ### Phase 11: Branding Fix (Completed)
 - [x] T-026: 更新窗口标题和 AppID
 
+### Phase 12: Config Path Fix (To Do)
+- [ ] T-027: 跨平台配置路径规范化
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流

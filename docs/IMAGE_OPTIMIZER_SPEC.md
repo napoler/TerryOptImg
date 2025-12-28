@@ -226,6 +226,14 @@
     - 在 Windows 任务栏中应显示独立图标和名称，而不是 "Python"。
 - **验收标准**: 启动程序后，标题栏和任务栏均显示正确名称。
 
+#### FR-021: 配置存储规范
+- **描述**: 配置文件应遵循操作系统规范，存储在用户目录下。
+- **详细逻辑**:
+    1. Windows: `%APPDATA%\TerryOptImg\config.json`
+    2. Linux: `~/.config/terryoptimg/config.json` (或 `XDG_CONFIG_HOME`)
+    3. macOS: `~/Library/Application Support/TerryOptImg/config.json`
+- **验收标准**: 在只读环境下运行应用也能成功保存配置。
+
 ## 🏗️ 第三阶段：Plan (计划阶段)
 
 ### 架构设计
