@@ -16,3 +16,11 @@
 - **Spec Compliance**: All code must reference Functional Requirements (FRs).
 - **Verification**: All features must be verified.
 - **Documentation**: Changes must be reflected in `docs/IMAGE_OPTIMIZER_SPEC.md`.
+
+## 标准操作流程 (SOP)
+所有 Agent 必须严格遵循 SpecKit 命令流：
+1. **Define**: `@/speckit.constitution`
+2. **Specify**: `@/speckit.specify`
+3. **Plan**: `@/speckit.plan`
+4. **Tasks**: `@/speckit.tasks`
+5. **Implement**: `@/speckit.implement`
