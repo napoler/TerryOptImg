@@ -266,3 +266,41 @@ docs/_build/
 local_settings.py
 config.ini
 settings.local.py
+
+# Project specific - TerryOptImg
+# Backup files
+*.backup
+*.bak
+*~
+
+# Test files
+test_*.py
+*_test.py
+
+# Temporary extraction directory
+temp_extract/
+
+# Build artifacts (keep existing ones but add more)
+*.deb
+*.rpm
+*.dmg
+*.exe
+*.msi
+*.zip
+*.tar.gz
+*.tar.bz2
+*.appimage
+*.snap
+
+# Qt specific
+*.ui.py
+*.qrc.py
+
+# Development files
+*.orig
+*.rej
+.patch
+
+# Local development
+.local/
+local/
