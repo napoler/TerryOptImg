@@ -16,6 +16,19 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 3. **Implement**: Write code in `src/`.
 4. **Verify**: Test and Update Reports.
 
+## 任务清单 (Tasks)
+### Phase 1: MVP (Completed)
+- [x] T-001: 核心逻辑实现
+- [x] T-002: CLI 实现
+- [x] T-003: GUI 实现
+- [x] T-004: 多线程机制
+- [x] T-005: 文档同步
+
+### Phase 2: GUI Optimization & High Availability (Completed)
+- [x] T-006: 配置持久化 (ConfigManager)
+- [x] T-007: 任务控制 (Cancel Button)
+- [x] T-008: 错误隔离与日志优化 (Error Handling)
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流

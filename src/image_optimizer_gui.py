@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
+import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import queue
@@ -33,8 +34,11 @@ class OptimizerApp(tk.Tk):
         self.files_to_process = []
         self.processing = False
         self.queue = queue.Queue()
+        self.cancel_event = threading.Event()
 
         self._init_ui()
+        self.load_config()
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self._check_queue()
 
     def _init_ui(self):
@@ -101,14 +105,21 @@ class OptimizerApp(tk.Tk):
         self.status_label.pack(anchor=tk.W)
 
         # Action Button
-        self.start_btn = ttk.Button(main_frame, text="Start Optimization", command=self.start_processing)
-        self.start_btn.pack(pady=5)
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(pady=5)
+        self.start_btn = ttk.Button(btn_frame, text="Start Optimization", command=self.start_processing)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_btn = ttk.Button(btn_frame, text="Stop", command=self.stop_processing, state="disabled")
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
 
         # Log Area
         log_frame = ttk.LabelFrame(main_frame, text="Log", padding="5")
         log_frame.pack(fill=tk.BOTH, expand=True)
 
         self.log_text = tk.Text(log_frame, height=10, width=50, state="disabled")
+        self.log_text.tag_config("error", foreground="red")
+        self.log_text.tag_config("success", foreground="green")
+
         scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=scrollbar.set)
 
@@ -149,9 +160,9 @@ class OptimizerApp(tk.Tk):
             self.output_path = folder
             self.output_label.config(text=f"Output: {self.output_path}")
 
-    def log(self, message):
+    def log(self, message, tag=None):
         self.log_text.config(state="normal")
-        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.insert(tk.END, message + "\n", tag)
         self.log_text.see(tk.END)
         self.log_text.config(state="disabled")
 
@@ -164,7 +175,9 @@ class OptimizerApp(tk.Tk):
             return
 
         self.processing = True
+        self.cancel_event.clear()
         self.start_btn.state(['disabled'])
+        self.stop_btn.state(['!disabled'])
         self.progress_var.set(0)
         self.log("Starting processing...")
 
@@ -175,6 +188,7 @@ class OptimizerApp(tk.Tk):
             messagebox.showerror("Error", "Max size must be an integer")
             self.processing = False
             self.start_btn.state(['!disabled'])
+            self.stop_btn.state(['disabled'])
             return
 
         fmt = self.format_var.get()
@@ -182,6 +196,12 @@ class OptimizerApp(tk.Tk):
 
         # Run in thread
         threading.Thread(target=self.run_optimizer, args=(max_size, target_format)).start()
+
+    def stop_processing(self):
+        if self.processing:
+            self.cancel_event.set()
+            self.log("Stopping...", "error")
+            self.stop_btn.state(['disabled'])
 
     def run_optimizer(self, max_size, target_format):
         optimizer = ImageOptimizer(
@@ -197,14 +217,26 @@ class OptimizerApp(tk.Tk):
 
         with ThreadPoolExecutor(max_workers=self.workers_var.get()) as executor:
             futures = []
+
+            # Submit loop
             for f in self.files_to_process:
+                if self.cancel_event.is_set():
+                    self.queue.put(("log", ("Cancelled remaining tasks", "error")))
+                    break
                 futures.append(executor.submit(optimizer.process_file, Path(f)))
 
+            # Result loop
             for future in futures:
-                result = future.result()
+                try:
+                    result = future.result()
+                    is_error = result.startswith("Error")
+                    tag = "error" if is_error else "success"
+                    self.queue.put(("progress", (completed + 1, total)))
+                    self.queue.put(("log", (result, tag)))
+                except Exception as e:
+                    self.queue.put(("log", (f"Exception: {e}", "error")))
+
                 completed += 1
-                self.queue.put(("progress", (completed, total)))
-                self.queue.put(("log", result))
 
         self.queue.put(("done", None))
 
@@ -217,16 +249,61 @@ class OptimizerApp(tk.Tk):
                     self.progress_var.set((completed / total) * 100)
                     self.status_label.config(text=f"Processing: {completed}/{total}")
                 elif msg_type == "log":
-                    self.log(data)
+                    if isinstance(data, tuple):
+                        self.log(data[0], data[1])
+                    else:
+                        self.log(data)
                 elif msg_type == "done":
                     self.processing = False
                     self.start_btn.state(['!disabled'])
-                    self.status_label.config(text="Completed!")
-                    messagebox.showinfo("Done", "Optimization Complete!")
+                    self.stop_btn.state(['disabled'])
+                    self.status_label.config(text="Completed!" if not self.cancel_event.is_set() else "Cancelled!")
+                    if not self.cancel_event.is_set():
+                        messagebox.showinfo("Done", "Optimization Complete!")
+                    else:
+                        messagebox.showinfo("Cancelled", "Optimization Stopped.")
         except queue.Empty:
             pass
         finally:
             self.after(100, self._check_queue)
+
+    def load_config(self):
+        config_path = Path("config.json")
+        if config_path.exists():
+            try:
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                    self.quality_var.set(config.get("quality", 85))
+                    self.workers_var.set(config.get("workers", 4))
+                    self.max_size_var.set(config.get("max_size", ""))
+                    self.format_var.set(config.get("format", "Keep Original"))
+                    self.overwrite_var.set(config.get("overwrite", False))
+                    out_dir = config.get("output_dir", None)
+                    if out_dir:
+                        self.output_path = out_dir
+                        self.output_label.config(text=f"Output: {self.output_path}")
+                    self.toggle_output() # Refresh UI state
+            except Exception as e:
+                print(f"Failed to load config: {e}")
+
+    def save_config(self):
+        config = {
+            "quality": self.quality_var.get(),
+            "workers": self.workers_var.get(),
+            "max_size": self.max_size_var.get(),
+            "format": self.format_var.get(),
+            "overwrite": self.overwrite_var.get(),
+            "output_dir": self.output_path
+        }
+        try:
+            with open("config.json", "w") as f:
+                json.dump(config, f)
+        except Exception as e:
+            print(f"Failed to save config: {e}")
+
+    def on_close(self):
+        self.save_config()
+        self.destroy()
 
 if __name__ == "__main__":
     app = OptimizerApp()
