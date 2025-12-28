@@ -29,7 +29,23 @@ class OptimizerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("TerryOptImg - Image Optimizer")
-        self.geometry("600x700")
+
+        # Dynamic Scaling
+        try:
+            dpi = self.winfo_fpixels('1i')
+        except Exception:
+            dpi = 96.0
+
+        self.scale = max(1.0, dpi / 96.0)
+        width = int(600 * self.scale)
+        height = int(700 * self.scale)
+        self.geometry(f"{width}x{height}")
+
+        # Apply Style
+        style = ttk.Style(self)
+        base_font_size = int(10 * self.scale)
+        style.configure('.', font=('Helvetica', base_font_size))
+        style.configure('TButton', padding=int(5 * self.scale))
 
         self.files_to_process = []
         self.processing = False
@@ -43,16 +59,20 @@ class OptimizerApp(tk.Tk):
         self._check_queue()
 
     def _init_ui(self):
+        p_lg = int(10 * self.scale)
+        p_md = int(5 * self.scale)
+        p_sm = int(2 * self.scale)
+
         # Main Container
-        main_frame = ttk.Frame(self, padding="10")
+        main_frame = ttk.Frame(self, padding=p_lg)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # File Selection Area
-        file_frame = ttk.LabelFrame(main_frame, text="Input Selection", padding="5")
-        file_frame.pack(fill=tk.X, pady=5)
+        file_frame = ttk.LabelFrame(main_frame, text="Input Selection", padding=p_md)
+        file_frame.pack(fill=tk.X, pady=p_md)
 
         self.file_label = ttk.Label(file_frame, text="No files selected")
-        self.file_label.pack(side=tk.LEFT, padx=5)
+        self.file_label.pack(side=tk.LEFT, padx=p_md)
 
         btn_frame = ttk.Frame(file_frame)
         btn_frame.pack(side=tk.RIGHT)

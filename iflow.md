@@ -72,6 +72,12 @@ See `docs/IMAGE_OPTIMIZER_SPEC.md` for full details.
 - [x] T-029: 构建脚本集成图标
 - [x] T-030: 安装文档更新
 
+### Phase 14: UI Enhance (Completed)
+- [x] T-031: 动态 UI 缩放
+
+### Phase 15: Configurable UI (Completed)
+- [x] T-032: 手动 UI 缩放配置
+
 ## SpecKit 核心功能命令 (Core Commands)
 
 ### 🎯 四阶段核心工作流
