@@ -240,7 +240,6 @@ class ModernImageOptimizer(QMainWindow):
         top_scroll.setFrameShape(QFrame.NoFrame)
 
         top_widget = QWidget()
-        top_widget.setMinimumHeight(400)
         top_layout = QHBoxLayout(top_widget)
         top_layout.setSpacing(10)
         top_layout.setContentsMargins(5, 5, 5, 5)
@@ -251,8 +250,7 @@ class ModernImageOptimizer(QMainWindow):
         # Settings section
         self.create_settings(top_layout)
         
-        top_scroll.setWidget(top_widget)
-        content_layout.addWidget(top_scroll)
+        content_layout.addWidget(top_widget)
         
         # Create bottom section (progress + log)
         bottom_widget = QWidget()
