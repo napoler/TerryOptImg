@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
                             QWidget, QLabel, QPushButton, QSpinBox, QComboBox, 
                             QCheckBox, QSlider, QGroupBox, QGridLayout, 
                             QLineEdit, QTextEdit, QFileDialog, QMessageBox,
-                            QFormLayout, QFrame, QButtonGroup, QRadioButton)
+                            QFormLayout, QFrame, QButtonGroup, QRadioButton, QScrollArea)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
 
@@ -22,7 +22,7 @@ class QtSettingsDialog(QDialog):
         super().__init__(parent)
         self.config_manager = config_manager
         self.setWindowTitle("⚙️ 设置")
-        self.setGeometry(200, 200, 900, 700)
+        self.resize(900, 700)
         self.setModal(True)
         
         self.setup_ui()
@@ -113,7 +113,13 @@ class QtSettingsDialog(QDialog):
     def create_general_tab(self):
         """Create general settings tab"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
         
@@ -172,12 +178,23 @@ class QtSettingsDialog(QDialog):
         
         layout.addStretch()
         
+        scroll.setWidget(content)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+
         self.tab_widget.addTab(tab, "📋 常规")
         
     def create_optimization_tab(self):
         """Create optimization settings tab"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
         
@@ -242,12 +259,23 @@ class QtSettingsDialog(QDialog):
         
         layout.addStretch()
         
+        scroll.setWidget(content)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+
         self.tab_widget.addTab(tab, "⚙️ 优化")
         
     def create_appearance_tab(self):
         """Create appearance settings tab"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
         
@@ -341,9 +369,18 @@ class QtSettingsDialog(QDialog):
         
         layout.addStretch()
         
+        scroll.setWidget(content)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+
         # 添加外观标签页，使用图标
         try:
-            from src.qt_icons import get_qicon
+            try:
+                from qt_icons import get_qicon
+            except ImportError:
+                from src.qt_icons import get_qicon
+
             appearance_icon = get_qicon("appearance")
             if not appearance_icon.isNull():
                 self.tab_widget.addTab(tab, appearance_icon, " 外观")
@@ -355,7 +392,13 @@ class QtSettingsDialog(QDialog):
     def create_advanced_tab(self):
         """Create advanced settings tab"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
         
@@ -444,8 +487,18 @@ class QtSettingsDialog(QDialog):
         
         layout.addLayout(reset_layout)
         
+        scroll.setWidget(content)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+
         # 添加高级标签页，使用图标
         try:
+            try:
+                from qt_icons import get_qicon
+            except ImportError:
+                from src.qt_icons import get_qicon
+
             advanced_icon = get_qicon("advanced")
             if not advanced_icon.isNull():
                 self.tab_widget.addTab(tab, advanced_icon, " 高级")
