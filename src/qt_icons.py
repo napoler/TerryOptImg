@@ -10,6 +10,13 @@ from PyQt5.QtGui import QIcon
 def get_assets_path():
     """获取assets目录路径"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Check for assets in current directory (for installed package)
+    local_assets = os.path.join(current_dir, 'assets')
+    if os.path.exists(local_assets):
+        return local_assets
+
+    # Check for assets in project root (for dev environment)
     project_root = os.path.dirname(current_dir)
     assets_path = os.path.join(project_root, 'assets')
     return assets_path

@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QPushButton, QProgressBar, 
                             QTextEdit, QGroupBox, QGridLayout, QSpinBox, 
                             QComboBox, QCheckBox, QLineEdit, QFileDialog,
-                            QMessageBox, QFrame, QSplitter)
+                            QMessageBox, QFrame, QSplitter, QScrollArea)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 
@@ -203,7 +203,11 @@ class ModernImageOptimizer(QMainWindow):
         self.setMinimumSize(800, 600)
         
         # Set window icon
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+        # Try local assets first (installed), then project root (dev)
+        icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
@@ -224,8 +228,13 @@ class ModernImageOptimizer(QMainWindow):
         main_layout.addWidget(splitter)
         
         # Create top section (file selection + settings)
+        # Use QScrollArea to prevent overlapping on small screens
+        top_scroll = QScrollArea()
+        top_scroll.setWidgetResizable(True)
+        top_scroll.setFrameShape(QFrame.NoFrame)
+
         top_widget = QWidget()
-        top_widget.setMinimumHeight(400)  # 合理的高度
+        top_widget.setMinimumHeight(400)
         top_layout = QHBoxLayout(top_widget)
         top_layout.setSpacing(15)
         top_layout.setContentsMargins(10, 10, 10, 10)
@@ -236,7 +245,8 @@ class ModernImageOptimizer(QMainWindow):
         # Settings section
         self.create_settings(top_layout)
         
-        splitter.addWidget(top_widget)
+        top_scroll.setWidget(top_widget)
+        splitter.addWidget(top_scroll)
         
         # Create bottom section (progress + log)
         bottom_widget = QWidget()
@@ -1290,7 +1300,11 @@ def main():
     app.setStyle('Fusion')
     
     # Set window icon if available
-    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+    # Try local assets first (installed), then project root (dev)
+    icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
+    if not os.path.exists(icon_path):
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
