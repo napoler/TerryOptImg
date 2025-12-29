@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QPushButton, QProgressBar, 
                             QTextEdit, QGroupBox, QGridLayout, QSpinBox, 
                             QComboBox, QCheckBox, QLineEdit, QFileDialog,
-                            QMessageBox, QFrame, QSplitter)
+                            QMessageBox, QFrame, QSplitter, QScrollArea)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 
@@ -51,12 +51,15 @@ except ImportError:
         QtSettingsDialog = None
 
 try:
-    from qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color
+    from qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color, get_assets_path
 except ImportError:
     try:
-        from src.qt_icons import get_icon, get_button_text, get_status_text, get_status_color
+        from src.qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color, get_assets_path
     except ImportError:
         # Fallback functions
+        def get_assets_path():
+            return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+
         def get_icon(name, use_emoji=True, fallback_text=True):
             icons = {
                 'folder': '📁', 'file': '📄', 'add_files': '📎', 'add_folder': '📂',
@@ -203,7 +206,7 @@ class ModernImageOptimizer(QMainWindow):
         self.setMinimumSize(800, 600)
         
         # Set window icon
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+        icon_path = os.path.join(get_assets_path(), 'icon.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
@@ -219,16 +222,22 @@ class ModernImageOptimizer(QMainWindow):
         # Create header
         self.create_header(main_layout)
         
-        # Create content area with splitter
-        splitter = QSplitter(Qt.Vertical)
-        main_layout.addWidget(splitter)
+        # Create global scroll area
+        main_scroll = QScrollArea()
+        main_scroll.setWidgetResizable(True)
+        main_scroll.setFrameShape(QFrame.NoFrame)
+
+        # Content widget holding everything
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(10)
+        content_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create top section (file selection + settings)
         top_widget = QWidget()
-        top_widget.setMinimumHeight(400)  # 合理的高度
         top_layout = QHBoxLayout(top_widget)
-        top_layout.setSpacing(15)
-        top_layout.setContentsMargins(10, 10, 10, 10)
+        top_layout.setSpacing(10)
+        top_layout.setContentsMargins(5, 5, 5, 5)
         
         # File selection section
         self.create_file_selection(top_layout)
@@ -236,14 +245,13 @@ class ModernImageOptimizer(QMainWindow):
         # Settings section
         self.create_settings(top_layout)
         
-        splitter.addWidget(top_widget)
+        content_layout.addWidget(top_widget)
         
         # Create bottom section (progress + log)
         bottom_widget = QWidget()
-        bottom_widget.setMinimumHeight(280)  # 调整最小高度
         bottom_layout = QVBoxLayout(bottom_widget)
-        bottom_layout.setSpacing(10)  # 减少间距
-        bottom_layout.setContentsMargins(5, 5, 5, 5)  # 添加内边距
+        bottom_layout.setSpacing(8)
+        bottom_layout.setContentsMargins(5, 5, 5, 5)
         
         # Progress section
         self.create_progress(bottom_layout)
@@ -251,12 +259,10 @@ class ModernImageOptimizer(QMainWindow):
         # Log section
         self.create_log(bottom_layout)
         
-        splitter.addWidget(bottom_widget)
+        content_layout.addWidget(bottom_widget)
         
-        # Set splitter sizes with better proportions
-        splitter.setSizes([400, 300])  # 合理的比例
-        splitter.setStretchFactor(0, 1)  # 上部分可拉伸
-        splitter.setStretchFactor(1, 2)  # 下部分获得更多空间
+        main_scroll.setWidget(content_widget)
+        main_layout.addWidget(main_scroll)
         
         # Create button bar
         self.create_button_bar(main_layout)
@@ -328,10 +334,10 @@ class ModernImageOptimizer(QMainWindow):
     def create_file_selection(self, layout):
         """Create file selection section"""
         group = QGroupBox(get_button_text("文件选择", "folder"))
-        group.setMinimumWidth(400)
+        group.setMinimumWidth(300)
         group.setStyleSheet("""
             QGroupBox {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #2c3e50;
                 border: 2px solid #3498db;
@@ -348,12 +354,12 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)
-        group_layout.setSpacing(12)  # 适当的间距
-        group_layout.setContentsMargins(15, 20, 15, 15)  # 减少边距
+        group_layout.setSpacing(8)
+        group_layout.setContentsMargins(10, 15, 10, 10)
         
         # File count label
         self.file_count_label = QLabel(get_button_text("未选择文件", "file"))
-        self.file_count_label.setMinimumHeight(40)  # 设置最小高度
+        self.file_count_label.setMinimumHeight(30)
         self.file_count_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -427,6 +433,35 @@ class ModernImageOptimizer(QMainWindow):
         add_folder_btn.clicked.connect(self.select_folder)
         btn_layout.addWidget(add_folder_btn)
         
+        # Clear files button
+        clear_files_btn = QPushButton("清除列表")
+        clear_icon = get_qicon("close")
+        if not clear_icon.isNull():
+            clear_files_btn.setIcon(clear_icon)
+            clear_files_btn.setIconSize(QSize(24, 24))
+        clear_files_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #e74c3c, stop:1 #c0392b);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 12px;
+                font-weight: bold;
+                min-height: 30px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #c0392b, stop:1 #a93226);
+            }
+            QPushButton:pressed {
+                background: #a93226;
+            }
+        """)
+        clear_files_btn.clicked.connect(self.clear_files)
+        btn_layout.addWidget(clear_files_btn)
+
         group_layout.addLayout(btn_layout)
         layout.addWidget(group)
         
@@ -435,7 +470,7 @@ class ModernImageOptimizer(QMainWindow):
         group = QGroupBox(get_button_text("快速设置", "settings"))
         group.setStyleSheet("""
             QGroupBox {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #2c3e50;
                 border: 2px solid #3498db;
@@ -452,8 +487,8 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)  # 改为垂直布局
-        group_layout.setSpacing(12)
-        group_layout.setContentsMargins(15, 15, 15, 15)
+        group_layout.setSpacing(8)
+        group_layout.setContentsMargins(10, 10, 10, 10)
         
         # 模式选择
         mode_layout = QHBoxLayout()
@@ -891,6 +926,13 @@ class ModernImageOptimizer(QMainWindow):
             }
         """
 
+    def clear_files(self):
+        """Clear selected files"""
+        if self.files_to_process:
+            self.files_to_process = []
+            self.update_file_count()
+            self.add_log("已清除文件列表", "info")
+
     def select_files(self):
         """Select files for processing"""
         files, _ = QFileDialog.getOpenFileNames(
@@ -1290,10 +1332,20 @@ def main():
     app.setStyle('Fusion')
     
     # Set window icon if available
-    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+    icon_path = os.path.join(get_assets_path(), 'icon.png')
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
+    # Apply UI scaling
+    try:
+        from utils.config_manager import ConfigManager
+        cm = ConfigManager()
+        scale = cm.get("ui_scale", 0)
+        apply_ui_scaling(app, scale)
+    except Exception as e:
+        print(f"Failed to apply UI scaling: {e}")
+        apply_ui_scaling(app, 0)
+
     # Create main window
     window = ModernImageOptimizer()
     window.show()

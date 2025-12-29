@@ -42,12 +42,14 @@ def build_deb():
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(file, dest)
     
-    # Copy assets to /opt
+    # Copy assets to /opt/terryoptimg/assets
     assets_dir = Path("assets")
     if assets_dir.exists():
+        dest_assets_dir = opt_dir / "assets"
+        dest_assets_dir.mkdir(parents=True, exist_ok=True)
         for file in assets_dir.rglob("*"):
             if file.is_file():
-                dest = opt_dir / file.relative_to(assets_dir)
+                dest = dest_assets_dir / file.relative_to(assets_dir)
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(file, dest)
     
