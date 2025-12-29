@@ -140,9 +140,8 @@ class ImageOptimizer:
             if self.keep_metadata and 'exif' in img.info:
                 save_kwargs['exif'] = img.info['exif']
 
-            needs_pil_save = (self.max_size is not None) or \
-                             (self.target_format is not None and self.target_format != current_ext) or \
-                             (not out_path.exists() and out_path != file_path)
+            # Always save to output path to ensure compression
+            needs_pil_save = True
 
             if needs_pil_save:
                 if save_ext in ['jpg', 'jpeg']:
@@ -157,6 +156,7 @@ class ImageOptimizer:
             elif out_path != file_path:
                  shutil.copy2(file_path, out_path)
 
+            # Apply external optimization tools
             if out_path.exists():
                 self.optimize_external(out_path)
 
@@ -201,17 +201,52 @@ class ImageOptimizer:
         return result
 
     def optimize_external(self, file_path: Path):
+        """Apply external optimization tools to further compress images"""
+        if not file_path.exists():
+            return
+            
         ext = file_path.suffix.lower()
-        if ext in ['.jpg', '.jpeg'] and self.has_jpegoptim:
-             cmd = ['jpegoptim', '-m', str(self.quality), str(file_path)]
-             if not self.keep_metadata:
-                 cmd.append('--strip-all')
-             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif ext == '.png' and self.has_pngquant:
-             cmd = ['pngquant', '--force', '--ext', '.png', '--quality', f'65-{self.quality}', str(file_path)]
-             if not self.keep_metadata:
-                 cmd.append('--strip')
-             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        try:
+            if ext in ['.jpg', '.jpeg'] and self.has_jpegoptim:
+                cmd = ['jpegoptim', '-m', str(self.quality), str(file_path)]
+                if not self.keep_metadata:
+                    cmd.append('--strip-all')
+                result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if result.returncode != 0:
+                    logger.warning(f"jpegoptim failed for {file_path}")
+                    
+            elif ext == '.png':
+                # Try pngquant first for better compression
+                if self.has_pngquant:
+                    cmd = ['pngquant', '--force', '--ext', '.png', '--quality', f'65-{self.quality}', str(file_path)]
+                    if not self.keep_metadata:
+                        cmd.append('--strip')
+                    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    if result.returncode != 0:
+                        logger.warning(f"pngquant failed for {file_path}")
+                
+                # Also try optipng if available
+                if self.has_optipng:
+                    cmd = ['optipng', '-o2', str(file_path)]
+                    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    if result.returncode != 0:
+                        logger.warning(f"optipng failed for {file_path}")
+                        
+            elif ext == '.webp' and self.has_cwebp:
+                # For webp, we need to re-encode with cwebp
+                temp_path = file_path.with_suffix('.tmp.webp')
+                cmd = ['cwebp', '-q', str(self.quality), str(file_path), '-o', str(temp_path)]
+                result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if result.returncode == 0 and temp_path.exists():
+                    # Replace original if compressed version is smaller
+                    if temp_path.stat().st_size < file_path.stat().st_size:
+                        shutil.move(str(temp_path), str(file_path))
+                    else:
+                        temp_path.unlink()
+                        
+        except Exception as e:
+            logger.error(f"External optimization failed for {file_path}: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="SpecKit Image Optimizer (Curtail Replica)")

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=2.0
+Type=Application
+Name=TerryOptImg - Image Optimizer
+Name[zh_CN]=TerryOptImg - 图像优化器
+Comment=Professional image compression and optimization tool
+Comment[zh_CN]=专业的图像压缩和优化工具
+Exec=terryoptimg
+Icon=terryoptimg
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=image;compress;optimize;resize;convert;
+Keywords[zh_CN]=图像;压缩;优化;缩放;转换;
+StartupWMClass=TerryOptImg
+MimeType=image/jpeg;image/png;image/webp;image/svg+xml;

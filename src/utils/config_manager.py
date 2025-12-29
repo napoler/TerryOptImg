@@ -1,11 +1,13 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 class ConfigManager:
     """
     Manages application configuration (loading, saving, defaults).
+    @spec: FR-021 - Configuration storage following OS standards
     """
     DEFAULT_CONFIG = {
         "mode": "Lossy",
@@ -18,15 +20,42 @@ class ConfigManager:
         "output_dir": None,
         "language": "English",
         "check_updates": True,
-        "ui_scale": 1.5,
+        "ui_scale": 0,  # 0 means auto-detect
         "theme": "System"
     }
 
     def __init__(self, filename: str = "config.json"):
-        # Currently using local path for portability/simplicity as per existing app behavior
-        self.config_path = Path(filename)
+        # @spec: FR-021 - Store config in OS-standard locations
+        self.config_dir = self._get_config_dir()
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        self.config_path = self.config_dir / filename
         self.config = self.DEFAULT_CONFIG.copy()
         self.load()
+    
+    def _get_config_dir(self) -> Path:
+        """Get platform-specific config directory following OS standards."""
+        system = sys.platform
+        
+        if system == "win32":
+            # Windows: %APPDATA%\TerryOptImg\
+            appdata = os.environ.get("APPDATA", "")
+            if appdata:
+                return Path(appdata) / "TerryOptImg"
+            # Fallback
+            return Path.home() / "AppData" / "Roaming" / "TerryOptImg"
+            
+        elif system == "darwin":
+            # macOS: ~/Library/Application Support/TerryOptImg/
+            return Path.home() / "Library" / "Application Support" / "TerryOptImg"
+            
+        else:
+            # Linux and other Unix-like: ~/.config/terryoptimg/
+            # Respect XDG_CONFIG_HOME if set
+            xdg_config = os.environ.get("XDG_CONFIG_HOME")
+            if xdg_config:
+                return Path(xdg_config) / "terryoptimg"
+            # Default to ~/.config/terryoptimg
+            return Path.home() / ".config" / "terryoptimg"
 
     def load(self) -> None:
         """Load configuration from file."""

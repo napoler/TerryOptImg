@@ -86,6 +86,7 @@ class WorkerThread(QThread):
     progress_updated = pyqtSignal(int, int)
     log_message = pyqtSignal(str, str)
     finished = pyqtSignal()
+    size_saved = pyqtSignal(int)  # Signal to emit saved bytes
     
     def __init__(self, files, optimizer, max_workers):
         super().__init__()
@@ -93,6 +94,7 @@ class WorkerThread(QThread):
         self.optimizer = optimizer
         self.max_workers = max_workers
         self.cancelled = False
+        self.total_saved = 0
     
     def cancel(self):
         self.cancelled = True
@@ -100,6 +102,7 @@ class WorkerThread(QThread):
     def run(self):
         total = len(self.files)
         completed = 0
+        self.total_saved = 0
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
@@ -124,6 +127,13 @@ class WorkerThread(QThread):
                         msg = result.get("message", "")
                         tag = "success" if result.get("success") else "error"
                         self.log_message.emit(msg, tag)
+                        
+                        # Track saved size
+                        if result.get("success") and result.get("original_size") and result.get("new_size"):
+                            saved = result.get("original_size") - result.get("new_size")
+                            if saved > 0:
+                                self.total_saved += saved
+                                self.size_saved.emit(saved)
                     else:
                         self.log_message.emit(str(result), "info")
                 except Exception as e:
@@ -162,8 +172,35 @@ class ModernImageOptimizer(QMainWindow):
         
     def setup_ui(self):
         """Setup the main UI"""
-        self.setWindowTitle("🎨 TerryOptImg - Professional Image Optimizer")
-        self.setGeometry(100, 100, 1400, 1000)
+        # @spec: FR-020 - Brand consistency in window title
+        self.setWindowTitle("TerryOptImg - Image Optimizer")
+        
+        # 获取屏幕尺寸并调整窗口大小
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_geometry = screen.availableGeometry()
+            screen_width = screen_geometry.width()
+            screen_height = screen_geometry.height()
+            
+            # 设置合理的窗口大小，不超过屏幕尺寸的90%
+            window_width = min(1400, int(screen_width * 0.9))
+            window_height = min(1000, int(screen_height * 0.9))
+            
+            # 确保最小尺寸
+            window_width = max(800, window_width)
+            window_height = max(600, window_height)
+            
+            # 居中显示窗口
+            x = (screen_width - window_width) // 2
+            y = (screen_height - window_height) // 2
+            
+            self.setGeometry(x, y, window_width, window_height)
+        else:
+            # 回退到默认设置
+            self.setGeometry(100, 100, 1200, 800)
+        
+        # 设置最小窗口尺寸
+        self.setMinimumSize(800, 600)
         
         # Set window icon
         icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
@@ -176,8 +213,8 @@ class ModernImageOptimizer(QMainWindow):
         
         # Main layout
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(10)  # 减少间距避免拥挤
+        main_layout.setContentsMargins(15, 15, 15, 15)  # 减少边距
         
         # Create header
         self.create_header(main_layout)
@@ -188,8 +225,10 @@ class ModernImageOptimizer(QMainWindow):
         
         # Create top section (file selection + settings)
         top_widget = QWidget()
+        top_widget.setMinimumHeight(400)  # 合理的高度
         top_layout = QHBoxLayout(top_widget)
-        top_layout.setSpacing(20)
+        top_layout.setSpacing(15)
+        top_layout.setContentsMargins(10, 10, 10, 10)
         
         # File selection section
         self.create_file_selection(top_layout)
@@ -201,8 +240,10 @@ class ModernImageOptimizer(QMainWindow):
         
         # Create bottom section (progress + log)
         bottom_widget = QWidget()
+        bottom_widget.setMinimumHeight(280)  # 调整最小高度
         bottom_layout = QVBoxLayout(bottom_widget)
-        bottom_layout.setSpacing(15)
+        bottom_layout.setSpacing(10)  # 减少间距
+        bottom_layout.setContentsMargins(5, 5, 5, 5)  # 添加内边距
         
         # Progress section
         self.create_progress(bottom_layout)
@@ -212,8 +253,10 @@ class ModernImageOptimizer(QMainWindow):
         
         splitter.addWidget(bottom_widget)
         
-        # Set splitter sizes
-        splitter.setSizes([400, 400])
+        # Set splitter sizes with better proportions
+        splitter.setSizes([400, 300])  # 合理的比例
+        splitter.setStretchFactor(0, 1)  # 上部分可拉伸
+        splitter.setStretchFactor(1, 2)  # 下部分获得更多空间
         
         # Create button bar
         self.create_button_bar(main_layout)
@@ -305,25 +348,26 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)
-        group_layout.setSpacing(15)
-        group_layout.setContentsMargins(20, 30, 20, 20)
+        group_layout.setSpacing(12)  # 适当的间距
+        group_layout.setContentsMargins(15, 20, 15, 15)  # 减少边距
         
         # File count label
         self.file_count_label = QLabel(get_button_text("未选择文件", "file"))
+        self.file_count_label.setMinimumHeight(40)  # 设置最小高度
         self.file_count_label.setStyleSheet("""
             QLabel {
-                font-size: 18px;
+                font-size: 14px;
                 color: #2c3e50;
-                padding: 10px;
+                padding: 8px;
                 background: #ecf0f1;
-                border-radius: 8px;
+                border-radius: 6px;
             }
         """)
         group_layout.addWidget(self.file_count_label)
         
         # Button layout
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
+        btn_layout.setSpacing(10)  # 按钮间距
         
 # Add files button
         add_files_btn = QPushButton("添加文件")
@@ -337,10 +381,11 @@ class ModernImageOptimizer(QMainWindow):
                     stop:0 #3498db, stop:1 #2980b9);
                 color: white;
                 border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 12px;
                 font-weight: bold;
+                min-height: 30px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -365,10 +410,11 @@ class ModernImageOptimizer(QMainWindow):
                     stop:0 #27ae60, stop:1 #229954);
                 color: white;
                 border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 12px;
                 font-weight: bold;
+                min-height: 30px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -405,112 +451,115 @@ class ModernImageOptimizer(QMainWindow):
             }
         """)
         
-        group_layout = QGridLayout(group)
-        group_layout.setSpacing(15)
-        group_layout.setContentsMargins(20, 30, 20, 20)
+        group_layout = QVBoxLayout(group)  # 改为垂直布局
+        group_layout.setSpacing(12)
+        group_layout.setContentsMargins(15, 15, 15, 15)
         
-        # Mode selection
+        # 模式选择
+        mode_layout = QHBoxLayout()
         mode_label = QLabel("模式:")
-        mode_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
-        group_layout.addWidget(mode_label, 0, 0)
-        
+        mode_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["有损压缩", "无损压缩"])
-        self.mode_combo.setStyleSheet(self.get_combo_style())
+        self.mode_combo.setMinimumWidth(150)
         self.mode_combo.currentTextChanged.connect(self.toggle_mode)
-        group_layout.addWidget(self.mode_combo, 0, 1)
+        mode_layout.addWidget(mode_label)
+        mode_layout.addWidget(self.mode_combo)
+        mode_layout.addStretch()
+        group_layout.addLayout(mode_layout)
         
-        # Keep metadata
-        self.keep_metadata_cb = QCheckBox("保留元数据")
-        self.keep_metadata_cb.setStyleSheet(self.get_checkbox_style())
-        group_layout.addWidget(self.keep_metadata_cb, 0, 2)
-        
-        # Quality
+        # 质量和线程数（水平排列）
+        quality_workers_layout = QHBoxLayout()
+        quality_layout = QHBoxLayout()
         quality_label = QLabel("质量:")
-        quality_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
-        group_layout.addWidget(quality_label, 1, 0)
-        
+        quality_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.quality_spin = QSpinBox()
         self.quality_spin.setRange(1, 100)
         self.quality_spin.setValue(85)
-        self.quality_spin.setStyleSheet(self.get_spinbox_style())
-        group_layout.addWidget(self.quality_spin, 1, 1)
+        self.quality_spin.setMinimumWidth(80)
+        quality_layout.addWidget(quality_label)
+        quality_layout.addWidget(self.quality_spin)
+        quality_layout.addWidget(QLabel("%"))
+        quality_layout.addStretch()
         
-        # Workers
+        workers_layout = QHBoxLayout()
         workers_label = QLabel("线程数:")
-        workers_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
-        group_layout.addWidget(workers_label, 1, 2)
-        
+        workers_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.workers_spin = QSpinBox()
         self.workers_spin.setRange(1, 32)
         self.workers_spin.setValue(4)
-        self.workers_spin.setStyleSheet(self.get_spinbox_style())
-        group_layout.addWidget(self.workers_spin, 1, 3)
+        self.workers_spin.setMinimumWidth(80)
+        workers_layout.addWidget(workers_label)
+        workers_layout.addWidget(self.workers_spin)
+        workers_layout.addStretch()
         
-        # Max size
-        max_size_label = QLabel("最大尺寸:")
-        max_size_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
-        group_layout.addWidget(max_size_label, 2, 0)
+        quality_workers_layout.addLayout(quality_layout)
+        quality_workers_layout.addLayout(workers_layout)
+        group_layout.addLayout(quality_workers_layout)
         
+        # 最大尺寸
+        size_layout = QHBoxLayout()
+        size_label = QLabel("最大尺寸:")
+        size_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.max_size_edit = QLineEdit()
         self.max_size_edit.setPlaceholderText("例如: 1920x1080")
-        self.max_size_edit.setStyleSheet(self.get_lineedit_style())
-        group_layout.addWidget(self.max_size_edit, 2, 1)
+        self.max_size_edit.setMinimumWidth(150)
+        size_layout.addWidget(size_label)
+        size_layout.addWidget(self.max_size_edit)
+        size_layout.addStretch()
+        group_layout.addLayout(size_layout)
         
-        # Format
+        # 格式
+        format_layout = QHBoxLayout()
         format_label = QLabel("格式:")
-        format_label.setStyleSheet("font-weight: bold; color: #2c3e50;")
-        group_layout.addWidget(format_label, 2, 2)
-        
+        format_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.format_combo = QComboBox()
         self.format_combo.addItems(["保持原格式", "jpg", "png", "webp"])
-        self.format_combo.setStyleSheet(self.get_combo_style())
-        group_layout.addWidget(self.format_combo, 2, 3)
+        self.format_combo.setMinimumWidth(150)
+        format_layout.addWidget(format_label)
+        format_layout.addWidget(self.format_combo)
+        format_layout.addStretch()
+        group_layout.addLayout(format_layout)
         
-        # Overwrite
+        # 复选框
+        checkboxes_layout = QHBoxLayout()
+        self.keep_metadata_cb = QCheckBox("保留元数据")
         self.overwrite_cb = QCheckBox("覆盖原文件")
-        self.overwrite_cb.setStyleSheet(self.get_checkbox_style())
         self.overwrite_cb.stateChanged.connect(self.toggle_output)
-        group_layout.addWidget(self.overwrite_cb, 3, 0, 1, 2)
+        checkboxes_layout.addWidget(self.keep_metadata_cb)
+        checkboxes_layout.addWidget(self.overwrite_cb)
+        checkboxes_layout.addStretch()
+        group_layout.addLayout(checkboxes_layout)
         
-        # Output button
+        # 输出目录
+        output_layout = QHBoxLayout()
+        output_label = QLabel("输出目录:")
+        output_label.setStyleSheet("font-weight: bold; color: #2c3e50; min-width: 60px;")
         self.output_btn = QPushButton("选择输出目录")
         output_icon = get_qicon("open")
         if not output_icon.isNull():
             self.output_btn.setIcon(output_icon)
-            self.output_btn.setIconSize(QSize(24, 24))
-        self.output_btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #f39c12, stop:1 #e67e22);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #e67e22, stop:1 #d35400);
-            }
-            QPushButton:pressed {
-                background: #d35400;
-            }
-        """)
         self.output_btn.clicked.connect(self.select_output)
-        group_layout.addWidget(self.output_btn, 3, 2, 1, 2)
+        output_layout.addWidget(output_label)
+        output_layout.addWidget(self.output_btn)
+        output_layout.addStretch()
+        group_layout.addLayout(output_layout)
         
-        # Output path label
-        self.output_label = QLabel("默认: 同目录")
-        self.output_label.setStyleSheet("""
+        # 输出路径显示
+        self.output_path_label = QLabel("默认: 同目录")
+        self.output_path_label.setStyleSheet("""
             QLabel {
                 color: #7f8c8d;
                 font-style: italic;
                 padding: 5px;
+                font-size: 12px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                border: 1px solid #dee2e6;
             }
         """)
-        group_layout.addWidget(self.output_label, 4, 0, 1, 4)
+        group_layout.addWidget(self.output_path_label)
+        group_layout.addStretch()  # 添加弹性空间
         
         layout.addWidget(group)
         
@@ -536,8 +585,8 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)
-        group_layout.setSpacing(15)
-        group_layout.setContentsMargins(20, 30, 20, 20)
+        group_layout.setSpacing(8)  # 减少间距
+        group_layout.setContentsMargins(15, 20, 15, 15)  # 减少边距
         
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -596,8 +645,8 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)
-        group_layout.setSpacing(10)
-        group_layout.setContentsMargins(20, 30, 20, 20)
+        group_layout.setSpacing(8)  # 减少间距
+        group_layout.setContentsMargins(15, 20, 15, 15)  # 减少边距
         
         # Log text area
         self.log_text = QTextEdit()
@@ -620,7 +669,8 @@ class ModernImageOptimizer(QMainWindow):
     def create_button_bar(self, layout):
         """Create button bar"""
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(15)
+        button_layout.setSpacing(10)  # 减少按钮间距
+        button_layout.setContentsMargins(0, 5, 0, 5)  # 添加上下边距
         
         # Start button
         self.start_btn = QPushButton("开始优化")
@@ -697,6 +747,44 @@ class ModernImageOptimizer(QMainWindow):
             QMainWindow {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #f8f9fa, stop:1 #ecf0f1);
+                font-size: 12px;
+            }
+            QLabel {
+                font-size: 12px;
+            }
+            QPushButton {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+            QProgressBar {
+                font-size: 12px;
+                height: 18px;
+            }
+            QTextEdit {
+                font-size: 11px;
+            }
+            QComboBox {
+                font-size: 12px;
+                padding: 4px;
+                min-height: 20px;
+            }
+            QSpinBox {
+                font-size: 12px;
+                padding: 4px;
+                min-height: 20px;
+            }
+            QCheckBox {
+                font-size: 12px;
+                spacing: 8px;
+            }
+            QLineEdit {
+                font-size: 12px;
+                padding: 6px;
+            }
+            QGroupBox {
+                font-size: 12px;
+                margin-top: 8px;
+                padding-top: 8px;
             }
         """)
         
@@ -739,32 +827,12 @@ class ModernImageOptimizer(QMainWindow):
             QComboBox {
                 background: white;
                 border: 2px solid #3498db;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 14px;
-                min-width: 120px;
+                border-radius: 4px;
+                padding: 5px 8px;
+                font-size: 12px;
             }
             QComboBox:hover {
                 border-color: #2980b9;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #3498db;
-                margin-right: 5px;
-            }
-            QComboBox QAbstractItemView {
-                background: white;
-                border: 2px solid #3498db;
-                border-radius: 8px;
-                selection-background-color: #3498db;
-                selection-color: white;
-                padding: 5px;
             }
         """
         
@@ -774,20 +842,12 @@ class ModernImageOptimizer(QMainWindow):
             QSpinBox {
                 background: white;
                 border: 2px solid #3498db;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 14px;
-                min-width: 80px;
+                border-radius: 4px;
+                padding: 5px 8px;
+                font-size: 12px;
             }
             QSpinBox:hover {
                 border-color: #2980b9;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                border: none;
-                width: 20px;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background: #3498db;
             }
         """
         
@@ -795,30 +855,20 @@ class ModernImageOptimizer(QMainWindow):
         """Get checkbox style"""
         return """
             QCheckBox {
-                font-size: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 color: #2c3e50;
-                spacing: 10px;
+                spacing: 8px;
             }
             QCheckBox::indicator {
-                width: 20px;
-                height: 20px;
+                width: 16px;
+                height: 16px;
                 border: 2px solid #3498db;
-                border-radius: 4px;
+                border-radius: 3px;
                 background: white;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #2980b9;
             }
             QCheckBox::indicator:checked {
                 background: #3498db;
-                image: none;
-            }
-            QCheckBox::indicator:checked::after {
-                content: "✓";
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
             }
         """
         
@@ -828,9 +878,9 @@ class ModernImageOptimizer(QMainWindow):
             QLineEdit {
                 background: white;
                 border: 2px solid #3498db;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 14px;
+                border-radius: 4px;
+                padding: 5px 8px;
+                font-size: 12px;
             }
             QLineEdit:hover {
                 border-color: #2980b9;
@@ -879,19 +929,19 @@ class ModernImageOptimizer(QMainWindow):
         """Toggle output selection"""
         if self.overwrite_cb.isChecked():
             self.output_btn.setEnabled(False)
-            self.output_label.setText("📁 直接覆盖原文件")
+            self.output_path_label.setText("📁 直接覆盖原文件")
             self.output_path = None
         else:
             self.output_btn.setEnabled(True)
             if not hasattr(self, 'output_path') or not self.output_path:
-                self.output_label.setText("📁 选择输出目录")
+                self.output_path_label.setText("📁 选择输出目录")
                 
     def select_output(self):
         """Select output directory"""
         folder = QFileDialog.getExistingDirectory(self, "选择输出目录")
         if folder:
             self.output_path = folder
-            self.output_label.setText(f"📁 输出: {folder}")
+            self.output_path_label.setText(f"📁 输出: {folder}")
             
     def start_processing(self):
         """Start image processing"""
@@ -909,7 +959,11 @@ class ModernImageOptimizer(QMainWindow):
                 size_text = self.max_size_edit.text().strip()
                 if 'x' in size_text:
                     width, height = map(int, size_text.split('x'))
-                    max_size = f"{width}x{height}"
+                    # Use the maximum dimension as specified by ImageOptimizer
+                    max_size = max(width, height)
+                else:
+                    # Single number - treat as maximum dimension
+                    max_size = int(size_text)
                     
             fmt = self.format_combo.currentText()
             target_format = None if fmt == "保持原格式" else fmt
@@ -924,6 +978,9 @@ class ModernImageOptimizer(QMainWindow):
                 keep_metadata=self.keep_metadata_cb.isChecked()
             )
             
+            # Reset saved size counter
+            self.session_saved_size = 0
+            
             # Start worker thread
             self.worker_thread = WorkerThread(
                 self.files_to_process, optimizer, self.workers_spin.value()
@@ -931,6 +988,7 @@ class ModernImageOptimizer(QMainWindow):
             self.worker_thread.progress_updated.connect(self.update_progress)
             self.worker_thread.log_message.connect(self.add_log)
             self.worker_thread.finished.connect(self.processing_finished)
+            self.worker_thread.size_saved.connect(self.update_saved_size)
             
             # Update UI
             self.start_btn.setEnabled(False)
@@ -965,6 +1023,16 @@ class ModernImageOptimizer(QMainWindow):
         progress = int((completed / total) * 100)
         self.progress_bar.setValue(progress)
         self.status_label.setText(f"🔄 处理中... {completed}/{total}")
+        
+    def update_saved_size(self, saved_bytes):
+        """Update total saved size"""
+        self.session_saved_size += saved_bytes
+        saved_kb = self.session_saved_size / 1024
+        saved_mb = saved_kb / 1024
+        if saved_mb >= 1:
+            self.status_label.setText(f"🔄 处理中... 已节省 {saved_mb:.2f} MB")
+        else:
+            self.status_label.setText(f"🔄 处理中... 已节省 {saved_kb:.0f} KB")
         
     def add_log(self, message, tag="info"):
         """Add message to log"""
@@ -1037,6 +1105,45 @@ class ModernImageOptimizer(QMainWindow):
         self.load_config()
         QMessageBox.information(self, "设置", "设置已更新，部分更改需要重启应用才能生效。")
         
+    def adjust_window_to_screen(self):
+        """动态调整窗口大小以适应屏幕"""
+        screen = QApplication.primaryScreen()
+        if not screen:
+            return
+            
+        screen_geometry = screen.availableGeometry()
+        window_width = self.width()
+        window_height = self.height()
+        
+        # 检查是否需要调整
+        needs_adjustment = False
+        
+        if window_width > screen_geometry.width() * 0.9:
+            window_width = int(screen_geometry.width() * 0.9)
+            needs_adjustment = True
+            
+        if window_height > screen_geometry.height() * 0.9:
+            window_height = int(screen_geometry.height() * 0.9)
+            needs_adjustment = True
+            
+        if needs_adjustment:
+            # 居中窗口
+            x = (screen_geometry.width() - window_width) // 2
+            y = (screen_geometry.height() - window_height) // 2
+            self.setGeometry(x, y, window_width, window_height)
+            
+        # 根据窗口大小调整布局
+        self.adjust_layout_to_window_size()
+    
+    def adjust_layout_to_window_size(self):
+        """根据窗口大小调整布局"""
+        window_width = self.width()
+        
+        # 小屏幕时调整布局
+        if window_width < 1000:
+            # 可以考虑将水平布局改为垂直布局
+            pass  # 这里可以添加更多响应式逻辑
+
     def load_config(self):
         """Load configuration"""
         if not self.config_manager:
@@ -1061,7 +1168,10 @@ class ModernImageOptimizer(QMainWindow):
             output_dir = self.config_manager.get("output_dir", None)
             if output_dir:
                 self.output_path = output_dir
-                self.output_label.setText(f"📁 输出: {output_dir}")
+                self.output_path_label.setText(f"📁 输出: {output_dir}")
+                
+            # 调整窗口大小以适应屏幕
+            self.adjust_window_to_screen()
                 
         except Exception as e:
             print(f"Config loading warning: {e}")
@@ -1088,14 +1198,101 @@ class ModernImageOptimizer(QMainWindow):
         except Exception as e:
             print(f"Config saving warning: {e}")
 
+def detect_dpi_scale():
+    """@spec: FR-019 - Detect system DPI for high DPI displays"""
+    import subprocess
+    
+    # Try different methods to detect DPI
+    try:
+        # Method 1: xrander on Linux
+        if sys.platform.startswith('linux'):
+            result = subprocess.run(['xrandr'], capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if ' connected' in line and 'mm' in line:
+                        # Extract physical dimensions and resolution
+                        parts = line.split()
+                        for i, part in enumerate(parts):
+                            if 'mm' in part and i > 0:
+                                # Look for resolution before physical size
+                                res_part = parts[i-2] if i-2 >= 0 else None
+                                if res_part and 'x' in res_part:
+                                    w, h = map(int, res_part.split('x'))
+                                    # Find physical dimensions
+                                    for j in range(max(0, i-5), i):
+                                        if 'mm' in parts[j]:
+                                            phys_w = int(parts[j].replace('mm', ''))
+                                            if j+1 < len(parts) and 'mm' in parts[j+1]:
+                                                phys_h = int(parts[j+1].replace('mm', ''))
+                                                # Calculate DPI
+                                                dpi_w = w * 25.4 / phys_w
+                                                dpi_h = h * 25.4 / phys_h
+                                                return (dpi_w + dpi_h) / 2 / 96.0
+    except:
+        pass
+    
+    # Method 2: Check Qt's own detection
+    try:
+        screen = QApplication.primaryScreen()
+        if screen:
+            dpi = screen.logicalDotsPerInch()
+            return dpi / 96.0
+    except:
+        pass
+    
+    # Method 3: Environment variables
+    if sys.platform.startswith('linux'):
+        # Try to read Xft.dpi
+        try:
+            result = subprocess.run(['xrdb', '-query'], capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if line.startswith('Xft.dpi:'):
+                        dpi = float(line.split(':')[1].strip())
+                        return dpi / 96.0
+        except:
+            pass
+    
+    # Default fallback
+    return 1.0
+
+def apply_ui_scaling(app, scale_factor):
+    """@spec: FR-024 - Apply dynamic UI scaling"""
+    if scale_factor <= 0:
+        # Auto-detect
+        scale_factor = detect_dpi_scale()
+        # Clamp to reasonable values
+        scale_factor = max(1.0, min(2.0, scale_factor))
+    
+    # Set font size based on scale
+    font = app.font()
+    base_size = 9  # Base font size in points
+    font.setPointSize(int(base_size * scale_factor))
+    app.setFont(font)
+    
+    return scale_factor
 def main():
     """Main function"""
+    # Fix clipboard issues on Linux
+    os.environ['QT_XCB_NO_XI2'] = '1'
+    
+    # Enable high DPI support before creating QApplication
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    
     app = QApplication(sys.argv)
+    
+    # Set basic application info
     app.setApplicationName("TerryOptImg")
     app.setApplicationVersion("2.0")
     
     # Set application style
     app.setStyle('Fusion')
+    
+    # Set window icon if available
+    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
     
     # Create main window
     window = ModernImageOptimizer()
