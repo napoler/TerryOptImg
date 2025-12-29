@@ -438,6 +438,35 @@ class ModernImageOptimizer(QMainWindow):
         add_folder_btn.clicked.connect(self.select_folder)
         btn_layout.addWidget(add_folder_btn)
         
+        # Clear files button
+        clear_files_btn = QPushButton("清除列表")
+        clear_icon = get_qicon("close")
+        if not clear_icon.isNull():
+            clear_files_btn.setIcon(clear_icon)
+            clear_files_btn.setIconSize(QSize(24, 24))
+        clear_files_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #e74c3c, stop:1 #c0392b);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 12px;
+                font-weight: bold;
+                min-height: 30px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #c0392b, stop:1 #a93226);
+            }
+            QPushButton:pressed {
+                background: #a93226;
+            }
+        """)
+        clear_files_btn.clicked.connect(self.clear_files)
+        btn_layout.addWidget(clear_files_btn)
+
         group_layout.addLayout(btn_layout)
         layout.addWidget(group)
         
@@ -901,6 +930,13 @@ class ModernImageOptimizer(QMainWindow):
                 outline: none;
             }
         """
+
+    def clear_files(self):
+        """Clear selected files"""
+        if self.files_to_process:
+            self.files_to_process = []
+            self.update_file_count()
+            self.add_log("已清除文件列表", "info")
 
     def select_files(self):
         """Select files for processing"""
