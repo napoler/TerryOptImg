@@ -1308,6 +1308,16 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
+    # Apply UI scaling
+    try:
+        from utils.config_manager import ConfigManager
+        cm = ConfigManager()
+        scale = cm.get("ui_scale", 0)
+        apply_ui_scaling(app, scale)
+    except Exception as e:
+        print(f"Failed to apply UI scaling: {e}")
+        apply_ui_scaling(app, 0)
+
     # Create main window
     window = ModernImageOptimizer()
     window.show()

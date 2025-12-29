@@ -22,7 +22,7 @@ class QtSettingsDialog(QDialog):
         super().__init__(parent)
         self.config_manager = config_manager
         self.setWindowTitle("⚙️ 设置")
-        self.setGeometry(200, 200, 900, 700)
+        self.resize(900, 700)
         self.setModal(True)
         
         self.setup_ui()
