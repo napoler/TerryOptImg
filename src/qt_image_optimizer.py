@@ -51,12 +51,15 @@ except ImportError:
         QtSettingsDialog = None
 
 try:
-    from qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color
+    from qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color, get_assets_path
 except ImportError:
     try:
-        from src.qt_icons import get_icon, get_button_text, get_status_text, get_status_color
+        from src.qt_icons import get_icon, get_qicon, get_button_text, get_status_text, get_status_color, get_assets_path
     except ImportError:
         # Fallback functions
+        def get_assets_path():
+            return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+
         def get_icon(name, use_emoji=True, fallback_text=True):
             icons = {
                 'folder': '📁', 'file': '📄', 'add_files': '📎', 'add_folder': '📂',
@@ -203,11 +206,7 @@ class ModernImageOptimizer(QMainWindow):
         self.setMinimumSize(800, 600)
         
         # Set window icon
-        # Try local assets first (installed), then project root (dev)
-        icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
-        if not os.path.exists(icon_path):
-            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
-
+        icon_path = os.path.join(get_assets_path(), 'icon.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
@@ -1300,11 +1299,7 @@ def main():
     app.setStyle('Fusion')
     
     # Set window icon if available
-    # Try local assets first (installed), then project root (dev)
-    icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
-    if not os.path.exists(icon_path):
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icon.png')
-
+    icon_path = os.path.join(get_assets_path(), 'icon.png')
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
