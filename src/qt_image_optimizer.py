@@ -222,9 +222,16 @@ class ModernImageOptimizer(QMainWindow):
         # Create header
         self.create_header(main_layout)
         
-        # Create content area with splitter
-        splitter = QSplitter(Qt.Vertical)
-        main_layout.addWidget(splitter)
+        # Create global scroll area
+        main_scroll = QScrollArea()
+        main_scroll.setWidgetResizable(True)
+        main_scroll.setFrameShape(QFrame.NoFrame)
+
+        # Content widget holding everything
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(10)
+        content_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create top section (file selection + settings)
         # Use QScrollArea to prevent overlapping on small screens
@@ -235,8 +242,8 @@ class ModernImageOptimizer(QMainWindow):
         top_widget = QWidget()
         top_widget.setMinimumHeight(400)
         top_layout = QHBoxLayout(top_widget)
-        top_layout.setSpacing(15)
-        top_layout.setContentsMargins(10, 10, 10, 10)
+        top_layout.setSpacing(10)
+        top_layout.setContentsMargins(5, 5, 5, 5)
         
         # File selection section
         self.create_file_selection(top_layout)
@@ -245,14 +252,13 @@ class ModernImageOptimizer(QMainWindow):
         self.create_settings(top_layout)
         
         top_scroll.setWidget(top_widget)
-        splitter.addWidget(top_scroll)
+        content_layout.addWidget(top_scroll)
         
         # Create bottom section (progress + log)
         bottom_widget = QWidget()
-        bottom_widget.setMinimumHeight(280)  # 调整最小高度
         bottom_layout = QVBoxLayout(bottom_widget)
-        bottom_layout.setSpacing(10)  # 减少间距
-        bottom_layout.setContentsMargins(5, 5, 5, 5)  # 添加内边距
+        bottom_layout.setSpacing(8)
+        bottom_layout.setContentsMargins(5, 5, 5, 5)
         
         # Progress section
         self.create_progress(bottom_layout)
@@ -260,12 +266,10 @@ class ModernImageOptimizer(QMainWindow):
         # Log section
         self.create_log(bottom_layout)
         
-        splitter.addWidget(bottom_widget)
+        content_layout.addWidget(bottom_widget)
         
-        # Set splitter sizes with better proportions
-        splitter.setSizes([400, 300])  # 合理的比例
-        splitter.setStretchFactor(0, 1)  # 上部分可拉伸
-        splitter.setStretchFactor(1, 2)  # 下部分获得更多空间
+        main_scroll.setWidget(content_widget)
+        main_layout.addWidget(main_scroll)
         
         # Create button bar
         self.create_button_bar(main_layout)
@@ -337,10 +341,10 @@ class ModernImageOptimizer(QMainWindow):
     def create_file_selection(self, layout):
         """Create file selection section"""
         group = QGroupBox(get_button_text("文件选择", "folder"))
-        group.setMinimumWidth(400)
+        group.setMinimumWidth(300)
         group.setStyleSheet("""
             QGroupBox {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #2c3e50;
                 border: 2px solid #3498db;
@@ -357,12 +361,12 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)
-        group_layout.setSpacing(12)  # 适当的间距
-        group_layout.setContentsMargins(15, 20, 15, 15)  # 减少边距
+        group_layout.setSpacing(8)
+        group_layout.setContentsMargins(10, 15, 10, 10)
         
         # File count label
         self.file_count_label = QLabel(get_button_text("未选择文件", "file"))
-        self.file_count_label.setMinimumHeight(40)  # 设置最小高度
+        self.file_count_label.setMinimumHeight(30)
         self.file_count_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -444,7 +448,7 @@ class ModernImageOptimizer(QMainWindow):
         group = QGroupBox(get_button_text("快速设置", "settings"))
         group.setStyleSheet("""
             QGroupBox {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #2c3e50;
                 border: 2px solid #3498db;
@@ -461,8 +465,8 @@ class ModernImageOptimizer(QMainWindow):
         """)
         
         group_layout = QVBoxLayout(group)  # 改为垂直布局
-        group_layout.setSpacing(12)
-        group_layout.setContentsMargins(15, 15, 15, 15)
+        group_layout.setSpacing(8)
+        group_layout.setContentsMargins(10, 10, 10, 10)
         
         # 模式选择
         mode_layout = QHBoxLayout()
