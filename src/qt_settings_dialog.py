@@ -343,7 +343,11 @@ class QtSettingsDialog(QDialog):
         
         # 添加外观标签页，使用图标
         try:
-            from src.qt_icons import get_qicon
+            try:
+                from qt_icons import get_qicon
+            except ImportError:
+                from src.qt_icons import get_qicon
+
             appearance_icon = get_qicon("appearance")
             if not appearance_icon.isNull():
                 self.tab_widget.addTab(tab, appearance_icon, " 外观")
@@ -446,6 +450,11 @@ class QtSettingsDialog(QDialog):
         
         # 添加高级标签页，使用图标
         try:
+            try:
+                from qt_icons import get_qicon
+            except ImportError:
+                from src.qt_icons import get_qicon
+
             advanced_icon = get_qicon("advanced")
             if not advanced_icon.isNull():
                 self.tab_widget.addTab(tab, advanced_icon, " 高级")
